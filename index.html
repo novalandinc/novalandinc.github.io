@@ -5,18 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Company Internal Tools</title>
 
-    <!-- Local assets (same folder) -->
     <link rel="stylesheet" href="assets/style.css" />
-
-    <!-- Fonts (optional) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
       rel="stylesheet"
     />
-
-    <!-- CSV parser -->
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
   </head>
   <body>
@@ -45,7 +40,7 @@
     </header>
 
     <main class="container">
-      <!-- MAIN NAV TABS -->
+      <!-- MAIN NAV -->
       <nav class="tabs" role="tablist" aria-label="Primary">
         <button
           class="tab active"
@@ -185,11 +180,8 @@
               <button id="run" class="wide primary" data-i18n="payments.run">
                 Run detection
               </button>
-
-              <!-- Helpful readiness messages -->
               <div id="readiness" class="hint small muted"></div>
 
-              <!-- Progress Bar -->
               <div
                 id="progress-container"
                 class="progress-container hidden"
@@ -266,41 +258,66 @@
               </div>
             </div>
 
+            <!-- RESULTS: accordion sections -->
             <section class="results card">
-              <div class="tabs small">
-                <button
-                  class="tab small active"
-                  data-tab="dups-unpaid"
-                  data-i18n="payments.tabs.unpaid"
-                >
-                  Duplicates: Unpaid
-                </button>
-                <button
-                  class="tab small"
-                  data-tab="dups-paid"
-                  data-i18n="payments.tabs.paid"
-                >
-                  Duplicates: Paid
-                </button>
-                <button
-                  class="tab small"
-                  data-tab="cross"
-                  data-i18n="payments.tabs.cross"
-                >
-                  Paid vs Unpaid
-                </button>
-                <div class="spacer"></div>
-                <button
-                  id="export-current"
-                  class="secondary small"
-                  data-i18n="payments.export"
-                >
-                  Download CSV
-                </button>
-              </div>
-              <div id="dups-unpaid" class="results"></div>
-              <div id="dups-paid" class="results hidden"></div>
-              <div id="cross" class="results hidden"></div>
+              <h3 class="muted" style="margin:0 0 8px 0">Results</h3>
+
+              <details class="acc" open id="acc-unpaid">
+                <summary>
+                  <span>Duplicates: Unpaid</span>
+                  <span class="badge" id="count-unpaid">0</span>
+                </summary>
+                <div class="acc-body">
+                  <div id="dups-unpaid" class="results"></div>
+                  <div class="row" style="justify-content:flex-end">
+                    <button
+                      id="export-unpaid"
+                      class="secondary small"
+                      data-i18n="payments.export"
+                    >
+                      Download CSV
+                    </button>
+                  </div>
+                </div>
+              </details>
+
+              <details class="acc" id="acc-paid">
+                <summary>
+                  <span>Duplicates: Paid</span>
+                  <span class="badge" id="count-paid">0</span>
+                </summary>
+                <div class="acc-body">
+                  <div id="dups-paid" class="results"></div>
+                  <div class="row" style="justify-content:flex-end">
+                    <button
+                      id="export-paid"
+                      class="secondary small"
+                      data-i18n="payments.export"
+                    >
+                      Download CSV
+                    </button>
+                  </div>
+                </div>
+              </details>
+
+              <details class="acc" id="acc-cross">
+                <summary>
+                  <span>Paid vs Unpaid</span>
+                  <span class="badge" id="count-cross">0</span>
+                </summary>
+                <div class="acc-body">
+                  <div id="cross" class="results"></div>
+                  <div class="row" style="justify-content:flex-end">
+                    <button
+                      id="export-cross"
+                      class="secondary small"
+                      data-i18n="payments.export"
+                    >
+                      Download CSV
+                    </button>
+                  </div>
+                </div>
+              </details>
             </section>
           </section>
         </div>

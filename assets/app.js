@@ -32,13 +32,9 @@ const I18N = {
     "payments.upload.drop": "Drop CSV here or click to select",
     "payments.upload.hintsUnpaid": "Required columns: EntryDate • VendorName • Amount • PropertyName",
     "payments.upload.hintsPaid": "Required columns: entryDate • payeeNameRaw • amount • buildingName",
-    "payments.tabs.unpaid": "Duplicates: Unpaid",
-    "payments.tabs.paid": "Duplicates: Paid",
-    "payments.tabs.cross": "Paid vs Unpaid",
     "payments.export": "Download CSV",
     "progress.preparing": "Preparing...",
     "progress.processing": "Processing...",
-    "progress.normalizing": "Normalizing data...",
     "progress.matching": "Matching duplicates...",
     "progress.crossMatch": "Cross-matching paid vs unpaid...",
     "progress.updating": "Updating results...",
@@ -77,13 +73,9 @@ const I18N = {
     "payments.upload.drop": "拖拽 CSV 到此处或点击选择",
     "payments.upload.hintsUnpaid": "必需列：EntryDate • VendorName • Amount • PropertyName",
     "payments.upload.hintsPaid": "必需列：entryDate • payeeNameRaw • amount • buildingName",
-    "payments.tabs.unpaid": "重复：未付",
-    "payments.tabs.paid": "重复：已付",
-    "payments.tabs.cross": "已付 vs 未付",
     "payments.export": "下载 CSV",
     "progress.preparing": "准备中...",
     "progress.processing": "处理中...",
-    "progress.normalizing": "正在归一化数据...",
     "progress.matching": "正在匹配重复项...",
     "progress.crossMatch": "正在交叉匹配已付 vs 未付...",
     "progress.updating": "正在更新结果...",
@@ -102,32 +94,18 @@ function applyI18n(){
   document.getElementById("lang-label").textContent = currentLang === "en" ? "中文" : "EN";
 }
 
-// ---------------- Tabs (fixed) ----------------
+// ---------------- Tabs (Home / Payments) ----------------
 function initNavTabs(){
-  // Main nav (Home/Payments)
   document.querySelectorAll('nav[role="tablist"] .tab').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const target = btn.dataset.tab;
       setActivePanel(target);
-      // update active state in nav
       document.querySelectorAll('nav[role="tablist"] .tab').forEach(b=>{
         b.classList.toggle('active', b===btn);
         b.setAttribute('aria-selected', String(b===btn));
       });
     });
   });
-
-  // Results tabs inside Payments
-  document.querySelectorAll('#payments .tabs .tab.small').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      setActiveResultsTab(btn.dataset.tab);
-      document.querySelectorAll('#payments .tabs .tab.small').forEach(b=>{
-        b.classList.toggle('active', b===btn);
-      });
-    });
-  });
-
-  // “Open” button from Home
   document.querySelectorAll('[data-open]').forEach(btn=>{
     btn.addEventListener('click', ()=> setActivePanel(btn.dataset.open));
   });
@@ -138,10 +116,6 @@ function setActivePanel(id){
     p.classList.toggle('active', active);
     p.setAttribute('aria-hidden', String(!active));
   });
-}
-function setActiveResultsTab(id){
-  document.querySelectorAll('.results').forEach(el=> el.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
 }
 
 // ---------------- Column contracts ----------------
@@ -208,11 +182,11 @@ function parseDate(d){
   const s = String(d).trim();
   if(!s) return null;
   const parts = [
-    /^(\d{4})-(\d{1,2})-(\d{1,2})$/,           // 2024-07-01
-    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/,       // 7/1/24 or 07/01/2024
-    /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/,       // 07.01.2024
-    /^(\d{1,2})-(\d{1,2})-(\d{2,4})$/,         // 07-01-2024
-    /^(\d{4})(\d{2})(\d{2})$/,                 // 20240701
+    /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/,
+    /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/,
+    /^(\d{1,2})-(\d{1,2})-(\d{2,4})$/,
+    /^(\d{4})(\d{2})(\d{2})$/,
   ];
   let y,m,da;
   for(const re of parts){
@@ -237,10 +211,7 @@ function dateDiffDays(a,b){
 
 // ---------------- CSV parsing ----------------
 function parseCSV(file, cb){
-  if (typeof Papa === 'undefined') {
-    alert('CSV parser not loaded. Please refresh and try again.');
-    return;
-  }
+  if (typeof Papa === 'undefined') { alert('CSV parser not loaded. Please refresh and try again.'); return; }
   Papa.parse(file, {
     header: true, skipEmptyLines: true, dynamicTyping: false,
     complete: results => cb(results.data, results.meta.fields || []),
@@ -333,12 +304,32 @@ function downloadCSV(filename, rows){
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
+function pairsToRows(pairs, sideA='A', sideB='B'){
+  const out=[];
+  for(let i=0;i<pairs.length;i++){
+    const [a,b]=pairs[i];
+    const shape = (rec, side)=>({
+      pair:i+1, side,
+      source: rec.kind,
+      row: rec.__row,
+      building: rec.buildingRaw,
+      vendor: rec.vendorRaw,
+      date: rec.dateRaw,
+      amount: rec.amountRaw,
+      reference: rec.reference,
+      memo: rec.memo
+    });
+    out.push(shape(a, sideA)); out.push(shape(b, sideB));
+  }
+  return out;
+}
 
 // ---------------- State ----------------
 let unpaidRows=null, unpaidHeaders=null, unpaidMap=null, unpaidRecords=null, unpaidMissing=[];
 let paidRows=null,   paidHeaders=null,   paidMap=null,   paidRecords=null,   paidMissing=[];
+let lastResults = { dupsUnpaid: [], dupsPaid: [], cross: [] };
 
-// Compute & show readiness reasons
+// Readiness messaging
 function computeReadinessIssues(){
   const issues=[];
   if(!unpaidRows) issues.push('Upload Unpaid CSV.');
@@ -359,11 +350,7 @@ function computeReadinessIssues(){
 function updateReadinessUI(){
   const el = document.getElementById('readiness');
   const issues = computeReadinessIssues();
-  if(issues.length){
-    el.innerHTML = 'Why the button is disabled:<br>• ' + issues.join('<br>• ');
-  }else{
-    el.textContent = '';
-  }
+  el.innerHTML = issues.length ? ('Why the button is disabled:<br>• ' + issues.join('<br>• ')) : '';
 }
 function isReady(){ return computeReadinessIssues().length===0; }
 function updateRunButton(){
@@ -410,8 +397,10 @@ function updateProgress(percent, labelKey='progress.preparing'){
 }
 
 function renderResults(dupsUnpaid, dupsPaid, cross){
+  lastResults = { dupsUnpaid, dupsPaid, cross };
+
   function table(pairs){
-    const cols = ['__row','buildingRaw','vendorRaw','dateRaw','amountRaw','reference','memo'];
+    const cols = ['__row','buildingRaw','vendorRaw','dateRaw','amountRaw','reference','memo','kind'];
     const head = `<tr>${['#',...cols].map(c=>`<th>${c}</th>`).join('')}</tr>`;
     const rows = pairs.map(([a,b],i)=>`
       <tr><td class="muted">${i+1}</td>${cols.map(c=>`<td>${a[c]??''}</td>`).join('')}</tr>
@@ -419,6 +408,12 @@ function renderResults(dupsUnpaid, dupsPaid, cross){
     `).join('');
     return `<table class="table">${head}${rows || '<tr><td class="muted">No matches</td></tr>'}</table>`;
   }
+
+  // Update section counts + tables
+  document.getElementById('count-unpaid').textContent = dupsUnpaid.length;
+  document.getElementById('count-paid').textContent   = dupsPaid.length;
+  document.getElementById('count-cross').textContent  = cross.length;
+
   document.getElementById('dups-unpaid').innerHTML = table(dupsUnpaid);
   document.getElementById('dups-paid').innerHTML   = table(dupsPaid);
   document.getElementById('cross').innerHTML       = table(cross);
@@ -427,10 +422,8 @@ function renderResults(dupsUnpaid, dupsPaid, cross){
 // ---------------- Run detection ----------------
 function runDetection(){
   const issues = computeReadinessIssues();
-  if(issues.length){
-    alert('Cannot run yet:\n- ' + issues.join('\n- '));
-    return;
-  }
+  if(issues.length){ alert('Cannot run yet:\n- ' + issues.join('\n- ')); return; }
+
   const daysTol   = parseInt(document.getElementById('days-window').value || '3', 10);
   const amountTol = parseFloat(document.getElementById('amount-window').value || '1');
 
@@ -481,12 +474,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
   applyI18n();
 
   initNavTabs();
-  setActivePanel('payments'); // optional: land on Payments automatically? comment out if not desired
+  setActivePanel('payments'); // optional default
   updateRunButton();
 
   document.getElementById('unpaid-mapping-toggle').addEventListener('click', ()=> document.getElementById('unpaid-info').classList.toggle('hidden'));
   document.getElementById('paid-mapping-toggle').addEventListener('click',  ()=> document.getElementById('paid-info').classList.toggle('hidden'));
   document.getElementById('run').addEventListener('click', runDetection);
+
+  // Export buttons for each section
+  document.getElementById('export-unpaid').addEventListener('click', ()=>{
+    const rows = pairsToRows(lastResults.dupsUnpaid,'A','B');
+    if(rows.length) downloadCSV('duplicates_unpaid.csv', rows);
+    else alert('No duplicates found in Unpaid section.');
+  });
+  document.getElementById('export-paid').addEventListener('click', ()=>{
+    const rows = pairsToRows(lastResults.dupsPaid,'A','B');
+    if(rows.length) downloadCSV('duplicates_paid.csv', rows);
+    else alert('No duplicates found in Paid section.');
+  });
+  document.getElementById('export-cross').addEventListener('click', ()=>{
+    const rows = pairsToRows(lastResults.cross,'Unpaid','Paid');
+    if(rows.length) downloadCSV('paid_vs_unpaid.csv', rows);
+    else alert('No matches found between Paid and Unpaid.');
+  });
 
   wireDropzone('dz-unpaid', 'file-unpaid', file=>{
     parseCSV(file, (rows, headers)=>{
