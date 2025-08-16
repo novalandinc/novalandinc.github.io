@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Company Internal Tools</title>
+
+    <!-- Local assets (same folder) -->
+    <link rel="stylesheet" href="assets/style.css" />
+
+    <!-- Fonts (optional) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- CSV parser -->
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <div class="brand">
+          <div class="logo">NT</div>
+          <div>
+            <div class="title" data-i18n="header.title">Internal Tools</div>
+            <div class="subtitle" data-i18n="header.subtitle">
+              Lightweight utilities for operations
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button
+          id="lang-toggle"
+          class="icon-button"
+          aria-label="Toggle language"
+        >
+          <span class="icon" aria-hidden="true">🌐</span>
+          <span id="lang-label">中文</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- MAIN NAV TABS -->
+      <nav class="tabs" role="tablist" aria-label="Primary">
+        <button
+          class="tab active"
+          role="tab"
+          aria-selected="true"
+          data-tab="home"
+          data-i18n="tabs.home"
+        >
+          Home
+        </button>
+        <button
+          class="tab"
+          role="tab"
+          aria-selected="false"
+          data-tab="payments"
+          data-i18n="tabs.payments"
+        >
+          Payments
+        </button>
+      </nav>
+
+      <!-- HOME -->
+      <section id="home" class="panel active" role="tabpanel">
+        <div class="hero card">
+          <h1 data-i18n="home.headline">Welcome to Internal Tools</h1>
+          <p class="muted" data-i18n="home.tagline">
+            A simple hub for day-to-day operations. Start with the Payments
+            Duplicate Auditor below.
+          </p>
+          <div class="grid">
+            <article class="tool-card card">
+              <div class="tool-icon">💳</div>
+              <h3 data-i18n="home.payments.title">
+                Payments Duplicate Auditor
+              </h3>
+              <p data-i18n="home.payments.desc">
+                Detect duplicate outgoing payments and open charges across CSV
+                exports.
+              </p>
+              <button
+                class="primary"
+                data-open="payments"
+                data-i18n="home.open"
+              >
+                Open
+              </button>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAYMENTS -->
+      <section id="payments" class="panel" role="tabpanel" aria-hidden="true">
+        <div class="layout">
+          <aside class="sidebar">
+            <h3 data-i18n="payments.sidebar.title">Duplicate Auditor</h3>
+            <ol class="steps">
+              <li data-i18n="payments.steps.1">Upload Unpaid Bills CSV</li>
+              <li data-i18n="payments.steps.2">Upload Paid Bills CSV</li>
+              <li data-i18n="payments.steps.3">Adjust settings (optional)</li>
+              <li data-i18n="payments.steps.4">Run detection</li>
+            </ol>
+
+            <details class="how card" open>
+              <summary data-i18n="payments.detection.howItWorks"
+                >How duplicate detection works</summary
+              >
+              <div class="muted">
+                <div data-i18n="payments.detection.criteria">
+                  Detection criteria:
+                </div>
+                <ul>
+                  <li data-i18n="payments.detection.building">
+                    Same building/property
+                  </li>
+                  <li data-i18n="payments.detection.vendor">
+                    Same vendor (normalized)
+                  </li>
+                  <li data-i18n="payments.detection.amount">
+                    Same amount (within tolerance)
+                  </li>
+                  <li data-i18n="payments.detection.date">
+                    Same date (within window)
+                  </li>
+                </ul>
+                <div class="muted small" data-i18n="payments.settings.signNote">
+                  Paid amounts are treated as positive outflows automatically.
+                </div>
+                <div
+                  class="muted small"
+                  data-i18n="payments.settings.dateFormats"
+                >
+                  Supports multiple date formats like MM/DD/YYYY, DD-MM-YYYY,
+                  YYYY-MM-DD, MM.DD.YYYY, YYYYMMDD, and more. Handles 2-digit
+                  years automatically.
+                </div>
+              </div>
+            </details>
+
+            <div class="settings card">
+              <div class="group">
+                <label
+                  for="days-window"
+                  data-i18n="payments.settings.dateWindow"
+                  >Date window (days)</label
+                >
+                <input id="days-window" type="number" min="0" value="3" />
+              </div>
+              <div class="group">
+                <label
+                  for="amount-window"
+                  data-i18n="payments.settings.amountTol"
+                  >Amount tolerance ($)</label
+                >
+                <input
+                  id="amount-window"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value="1"
+                />
+              </div>
+
+              <details>
+                <summary data-i18n="payments.settings.advanced"
+                  >Advanced options</summary
+                >
+                <label class="checkbox">
+                  <input id="norm-vendor" type="checkbox" checked />
+                  <span data-i18n="payments.settings.vendorNorm">
+                    Vendor normalization ignores punctuation, LLC/Inc/Co/Corp,
+                    "THE", and treats "&" as "AND".
+                  </span>
+                </label>
+              </details>
+
+              <button id="run" class="wide primary" data-i18n="payments.run">
+                Run detection
+              </button>
+
+              <!-- Helpful readiness messages -->
+              <div id="readiness" class="hint small muted"></div>
+
+              <!-- Progress Bar -->
+              <div
+                id="progress-container"
+                class="progress-container hidden"
+                role="status"
+                aria-live="polite"
+              >
+                <div id="progress-label" class="progress-label">
+                  Preparing...
+                </div>
+                <div class="progress-bar">
+                  <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="progress-text" class="progress-text">0%</div>
+              </div>
+            </div>
+          </aside>
+
+          <section class="content">
+            <div class="uploader card">
+              <!-- Unpaid -->
+              <div>
+                <h4 data-i18n="payments.upload.unpaid">Unpaid Bills</h4>
+                <div id="dz-unpaid" class="dropzone" role="button" tabindex="0">
+                  <div class="dz-title" data-i18n="payments.upload.drop">
+                    Drop CSV here or click to select
+                  </div>
+                  <div class="dz-sub" data-i18n="payments.upload.hintsUnpaid">
+                    Required columns: EntryDate • VendorName • Amount •
+                    PropertyName
+                  </div>
+                  <input
+                    type="file"
+                    id="file-unpaid"
+                    accept=".csv,text/csv"
+                    hidden
+                  />
+                </div>
+                <button
+                  id="unpaid-mapping-toggle"
+                  class="secondary small"
+                  type="button"
+                >
+                  Show mapping
+                </button>
+                <div id="unpaid-info" class="hidden"></div>
+              </div>
+
+              <!-- Paid -->
+              <div>
+                <h4 data-i18n="payments.upload.paid">Paid Bills</h4>
+                <div id="dz-paid" class="dropzone" role="button" tabindex="0">
+                  <div class="dz-title" data-i18n="payments.upload.drop">
+                    Drop CSV here or click to select
+                  </div>
+                  <div class="dz-sub" data-i18n="payments.upload.hintsPaid">
+                    Required columns: entryDate • payeeNameRaw • amount •
+                    buildingName
+                  </div>
+                  <input
+                    type="file"
+                    id="file-paid"
+                    accept=".csv,text/csv"
+                    hidden
+                  />
+                </div>
+                <button
+                  id="paid-mapping-toggle"
+                  class="secondary small"
+                  type="button"
+                >
+                  Show mapping
+                </button>
+                <div id="paid-info" class="hidden"></div>
+              </div>
+            </div>
+
+            <section class="results card">
+              <div class="tabs small">
+                <button
+                  class="tab small active"
+                  data-tab="dups-unpaid"
+                  data-i18n="payments.tabs.unpaid"
+                >
+                  Duplicates: Unpaid
+                </button>
+                <button
+                  class="tab small"
+                  data-tab="dups-paid"
+                  data-i18n="payments.tabs.paid"
+                >
+                  Duplicates: Paid
+                </button>
+                <button
+                  class="tab small"
+                  data-tab="cross"
+                  data-i18n="payments.tabs.cross"
+                >
+                  Paid vs Unpaid
+                </button>
+                <div class="spacer"></div>
+                <button
+                  id="export-current"
+                  class="secondary small"
+                  data-i18n="payments.export"
+                >
+                  Download CSV
+                </button>
+              </div>
+              <div id="dups-unpaid" class="results"></div>
+              <div id="dups-paid" class="results hidden"></div>
+              <div id="cross" class="results hidden"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <span class="muted small"
+          >© <span id="year"></span> •
+          <span data-i18n="footer.company">Novaland, Inc.</span></span
+        >
+      </div>
+    </footer>
+
+    <script src="assets/app.js"></script>
+  </body>
+</html>
