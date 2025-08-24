@@ -1,3 +1,8 @@
+/* =========================================================
+   Duplicates Auditor — styles.css
+   (Group-level horizontal scroll; full-width columns)
+   ========================================================= */
+
 /* Light, high-contrast theme */
 :root{
   --bg:#f8fafc; --panel:#ffffff; --card:#ffffff; --muted:#475569; --text:#0f172a;
@@ -41,10 +46,19 @@ body{
 .settings .group{display:grid;gap:6px;margin:10px 0}
 .checkbox{display:flex;gap:8px;align-items:flex-start}
 
+/* Tabs */
+.tabs{display:flex;gap:8px;margin:0 0 12px 0}
+.tab{
+  border:1px solid var(--border);background:#fff;color:var(--text);border-radius:999px;
+  padding:6px 12px;cursor:pointer;font-weight:600
+}
+.tab.active{background:#eff6ff;border-color:#bfdbfe}
+
 /* Dropzone */
 .uploader{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .dropzone{border:2px dashed var(--border);border-radius:12px;padding:16px;cursor:pointer;background:#fff}
 .dropzone:focus{outline:3px solid #bfdbfe;outline-offset:2px}
+.dropzone.drag{background:#f8fafc;border-color:#bfdbfe}
 .dz-title{font-weight:700;margin-bottom:4px}
 .dz-sub{color:var(--muted);font-size:12px}
 
@@ -71,7 +85,17 @@ body{
 .badge{border:1px solid var(--border);padding:2px 8px;border-radius:999px;font-size:12px;background:#f1f5f9}
 
 /* Grouped duplicates */
-.dup-group{border:1px solid var(--border);border-radius:12px;padding:10px;margin:10px 0;background:#fff;box-shadow:var(--shadow)}
+.dup-group{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px;         /* keep tidy margins */
+  margin:10px 0;
+  background:#fff;
+  box-shadow:var(--shadow);
+  overflow-x:auto;      /* <-- the whole panel scrolls horizontally */
+}
+
+/* Header chip row in each group */
 .dup-head{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .dup-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .kv{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid var(--border);border-radius:999px;font-size:12px;background:#f8fafc}
@@ -80,12 +104,39 @@ body{
 .link-btn{background:transparent;border:none;color:var(--accent);cursor:pointer;font-size:12px;text-decoration:underline}
 .count-chip{font-size:12px;border:1px solid var(--border);padding:2px 8px;border-radius:999px;background:#f1f5f9}
 
-/* Table (horizontal scroll) */
-.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
-.table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px;min-width:960px}
-.table th,.table td{border-bottom:1px solid var(--border);padding:8px;text-align:left;vertical-align:top;background:#fff}
-.table th{color:#334155;font-size:12px;position:sticky;top:0}
-.table td:first-child,.table th:first-child{position:sticky;left:0}
+/* ---------- Table: full-width columns, scroll via .dup-group ---------- */
+.table-wrap{
+  margin-top:8px;
+  border:none;
+  padding:0;
+}
+.table{
+  /* Let columns size to their content (no ellipsis) and allow overflow
+     to create a horizontal scrollbar on the .dup-group wrapper. */
+  width:auto;            /* shrink-to-fit */
+  min-width:100%;        /* but never smaller than the panel */
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:auto;     /* content-driven widths */
+}
+.table th,.table td{
+  border-bottom:1px solid var(--border);
+  padding:8px;
+  text-align:left;
+  vertical-align:top;
+  background:#fff;
+  white-space:nowrap;    /* keep long addresses on one line */
+  overflow:visible;      /* show full text; width will expand the table */
+}
+.table th{
+  color:#334155;font-size:12px;position:sticky;top:0;background:#fff;z-index:2;
+}
+
+/* Sticky first column behaves relative to .dup-group scroll container */
+.table td:first-child,
+.table th:first-child{
+  position:sticky;left:0;background:#fff;z-index:3;box-shadow:1px 0 0 var(--border);
+}
 
 /* Column visibility */
 .cols-basic .col-extra{display:none}

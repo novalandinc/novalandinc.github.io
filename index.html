@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title data-i18n="app.title">Duplicates Auditor</title>
+    <title>Duplicates Auditor</title>
 
     <link rel="stylesheet" href="assets/style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,10 +24,8 @@
       <div class="brand">
         <div class="logo">DA</div>
         <div>
-          <div class="title" data-i18n="header.title">Duplicates Auditor</div>
-          <div class="subtitle" data-i18n="header.subtitle">
-            Unpaid & Paid CSV compare
-          </div>
+          <div class="title">Duplicates Auditor</div>
+          <div class="subtitle">Single CSV (default) • Two CSVs (legacy)</div>
         </div>
       </div>
 
@@ -45,26 +43,20 @@
 
     <main class="container">
       <section class="layout">
+        <!-- SIDEBAR -->
         <aside class="sidebar">
-          <h3 data-i18n="steps.title">Getting started</h3>
-          <ol class="steps">
-            <li data-i18n="steps.1">Upload <strong>Unpaid</strong> CSV</li>
-            <li data-i18n="steps.2">Upload <strong>Paid</strong> CSV</li>
-            <li data-i18n="steps.3">Adjust settings (optional)</li>
-            <li data-i18n="steps.4">Run detection</li>
+          <h3>Getting started</h3>
+          <ol class="steps" id="steps">
+            <!-- Filled by JS depending on mode -->
           </ol>
 
           <div class="settings card">
             <div class="group">
-              <label for="days-window" data-i18n="settings.dateWindow"
-                >Date window (days)</label
-              >
+              <label for="days-window">Date window (days)</label>
               <input id="days-window" type="number" min="0" value="3" />
             </div>
             <div class="group">
-              <label for="amount-window" data-i18n="settings.amountTol"
-                >Amount tolerance ($)</label
-              >
+              <label for="amount-window">Amount tolerance ($)</label>
               <input
                 id="amount-window"
                 type="number"
@@ -75,19 +67,17 @@
             </div>
 
             <details>
-              <summary data-i18n="settings.advanced">Advanced options</summary>
+              <summary>Advanced options</summary>
               <label class="checkbox">
                 <input id="norm-vendor" type="checkbox" checked />
-                <span data-i18n="settings.vendorNorm">
-                  Normalize vendor names (ignore punctuation, LLC/Inc/Co/Corp,
-                  “THE”; “&” → “AND”)
-                </span>
+                <span
+                  >Normalize vendor names (ignore punctuation, LLC/Inc/Co/Corp,
+                  “THE”; “&” → “AND”)</span
+                >
               </label>
             </details>
 
-            <button id="run" class="wide primary" data-i18n="actions.run">
-              Run detection
-            </button>
+            <button id="run" class="wide primary">Run detection</button>
             <div id="readiness" class="hint small muted"></div>
 
             <div
@@ -96,13 +86,7 @@
               role="status"
               aria-live="polite"
             >
-              <div
-                id="progress-label"
-                class="progress-label"
-                data-i18n="progress.preparing"
-              >
-                Preparing…
-              </div>
+              <div id="progress-label" class="progress-label">Preparing…</div>
               <div class="progress-bar">
                 <div id="progress-fill" class="progress-fill"></div>
               </div>
@@ -111,304 +95,401 @@
           </div>
         </aside>
 
+        <!-- CONTENT -->
         <section class="content">
-          <div class="uploader card">
-            <!-- Unpaid -->
-            <div>
-              <h4 data-i18n="upload.unpaid">Unpaid CSV</h4>
-              <div id="dz-unpaid" class="dropzone" role="button" tabindex="0">
-                <div class="dz-title" data-i18n="upload.drop">
-                  Drop CSV here or click to select
-                </div>
-                <div class="dz-sub" data-i18n="upload.hintsUnpaid">
-                  Required: <code>EntryDate</code> • <code>VendorName</code> •
-                  <code>Amount</code> • <code>PropertyName</code>
-                </div>
-                <input
-                  type="file"
-                  id="file-unpaid"
-                  accept=".csv,text/csv"
-                  hidden
-                />
-              </div>
-              <button
-                id="unpaid-mapping-toggle"
-                class="secondary small"
-                type="button"
-                data-i18n="upload.showMap"
-              >
-                Show mapping
-              </button>
-              <div id="unpaid-info" class="hidden"></div>
-            </div>
-
-            <!-- Paid -->
-            <div>
-              <h4 data-i18n="upload.paid">Paid CSV</h4>
-              <div id="dz-paid" class="dropzone" role="button" tabindex="0">
-                <div class="dz-title" data-i18n="upload.drop">
-                  Drop CSV here or click to select
-                </div>
-                <div class="dz-sub" data-i18n="upload.hintsPaid">
-                  Required: <code>entryDate</code> • <code>payeeNameRaw</code> •
-                  <code>amount</code> • <code>buildingName</code>
-                </div>
-                <input
-                  type="file"
-                  id="file-paid"
-                  accept=".csv,text/csv"
-                  hidden
-                />
-              </div>
-              <button
-                id="paid-mapping-toggle"
-                class="secondary small"
-                type="button"
-                data-i18n="upload.showMap"
-              >
-                Show mapping
-              </button>
-              <div id="paid-info" class="hidden"></div>
-            </div>
+          <!-- MODE TABS -->
+          <div class="tabs" role="tablist" aria-label="Mode">
+            <button
+              id="tab-single"
+              class="tab active"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel-single"
+            >
+              Single CSV
+            </button>
+            <button
+              id="tab-legacy"
+              class="tab"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-legacy"
+            >
+              Two CSVs (Legacy)
+            </button>
           </div>
 
-          <!-- RESULTS -->
-          <section class="results card">
-            <h3
-              class="muted"
-              style="margin:0 0 8px 0"
-              data-i18n="results.title"
-            >
-              Results
-            </h3>
-
-            <!-- UNPAID -->
-            <details class="acc" open id="acc-unpaid">
-              <summary>
-                <span data-i18n="results.unpaid">Duplicates: Unpaid</span>
-                <span class="badge" id="count-unpaid">0</span>
-              </summary>
-              <div class="acc-body">
-                <div class="result-controls">
+          <!-- SINGLE MODE PANEL -->
+          <section
+            id="panel-single"
+            class="tab-panel card"
+            role="tabpanel"
+            aria-labelledby="tab-single"
+          >
+            <div class="uploader">
+              <div>
+                <h4>CSV</h4>
+                <div id="dz-single" class="dropzone" role="button" tabindex="0">
+                  <div class="dz-title">Drop CSV here or click to select</div>
+                  <div class="dz-sub">
+                    Will auto-detect columns. Typical required fields:
+                    <code>EntryDate</code>/<code>entryDate</code> •
+                    <code>VendorName</code>/<code>payeeNameRaw</code> •
+                    <code>Amount</code>/<code>amount</code> •
+                    <code>PropertyName</code>/<code>buildingName</code>
+                  </div>
                   <input
-                    id="filter-unpaid"
-                    class="search"
-                    type="search"
-                    data-i18n-placeholder="filter.placeholder"
-                    placeholder="Filter vendor/building…"
+                    type="file"
+                    id="file-single"
+                    accept=".csv,text/csv"
+                    hidden
                   />
-                  <div class="segmented" role="group" aria-label="Rows">
-                    <button
-                      class="seg active"
-                      data-scope="unpaid"
-                      data-kind="rows"
-                      data-value="compact"
-                      aria-pressed="true"
-                      data-i18n="rows.compact"
-                    >
-                      Compact
-                    </button>
-                    <button
-                      class="seg"
-                      data-scope="unpaid"
-                      data-kind="rows"
-                      data-value="all"
-                      aria-pressed="false"
-                      data-i18n="rows.all"
-                    >
-                      All rows
-                    </button>
-                  </div>
-                  <div class="segmented" role="group" aria-label="Columns">
-                    <button
-                      class="seg active"
-                      data-scope="unpaid"
-                      data-kind="cols"
-                      data-value="basic"
-                      aria-pressed="true"
-                      data-i18n="cols.basic"
-                    >
-                      Basic
-                    </button>
-                    <button
-                      class="seg"
-                      data-scope="unpaid"
-                      data-kind="cols"
-                      data-value="all"
-                      aria-pressed="false"
-                      data-i18n="cols.all"
-                    >
-                      All columns
-                    </button>
-                  </div>
                 </div>
-
-                <div id="dups-unpaid" class="results"></div>
-                <div id="pager-unpaid" class="pager"></div>
-
-                <div class="row" style="justify-content:flex-end">
-                  <button
-                    id="export-unpaid"
-                    class="secondary small"
-                    data-i18n="actions.export"
-                  >
-                    Download CSV
-                  </button>
-                </div>
+                <button
+                  id="single-mapping-toggle"
+                  class="secondary small"
+                  type="button"
+                >
+                  Show mapping
+                </button>
+                <div id="single-info" class="hidden"></div>
               </div>
-            </details>
+            </div>
 
-            <!-- PAID -->
-            <details class="acc" id="acc-paid">
-              <summary>
-                <span data-i18n="results.paid">Duplicates: Paid</span>
-                <span class="badge" id="count-paid">0</span>
-              </summary>
-              <div class="acc-body">
-                <div class="result-controls">
+            <section class="results" style="margin-top:16px">
+              <details class="acc" open id="acc-single">
+                <summary>
+                  <span>Duplicates</span>
+                  <span class="badge" id="count-single">0</span>
+                </summary>
+                <div class="acc-body">
+                  <div class="result-controls">
+                    <input
+                      id="filter-single"
+                      class="search"
+                      type="search"
+                      placeholder="Filter vendor/building…"
+                    />
+                    <div class="segmented" role="group" aria-label="Rows">
+                      <button
+                        class="seg active"
+                        data-scope="single"
+                        data-kind="rows"
+                        data-value="compact"
+                        aria-pressed="true"
+                      >
+                        Compact
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="single"
+                        data-kind="rows"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All rows
+                      </button>
+                    </div>
+                    <div class="segmented" role="group" aria-label="Columns">
+                      <button
+                        class="seg active"
+                        data-scope="single"
+                        data-kind="cols"
+                        data-value="basic"
+                        aria-pressed="true"
+                      >
+                        Basic
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="single"
+                        data-kind="cols"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All columns
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="dups-single" class="results"></div>
+                  <div id="pager-single" class="pager"></div>
+
+                  <div class="row" style="justify-content:flex-end">
+                    <button id="export-single" class="secondary small">
+                      Download CSV
+                    </button>
+                  </div>
+                </div>
+              </details>
+            </section>
+          </section>
+
+          <!-- LEGACY PANEL (unchanged behavior) -->
+          <section
+            id="panel-legacy"
+            class="tab-panel card hidden"
+            role="tabpanel"
+            aria-labelledby="tab-legacy"
+          >
+            <div class="uploader">
+              <!-- Unpaid -->
+              <div>
+                <h4>Unpaid CSV</h4>
+                <div id="dz-unpaid" class="dropzone" role="button" tabindex="0">
+                  <div class="dz-title">Drop CSV here or click to select</div>
+                  <div class="dz-sub">
+                    Required: <code>EntryDate</code> • <code>VendorName</code> •
+                    <code>Amount</code> • <code>PropertyName</code>
+                  </div>
                   <input
-                    id="filter-paid"
-                    class="search"
-                    type="search"
-                    data-i18n-placeholder="filter.placeholder"
-                    placeholder="Filter vendor/building…"
+                    type="file"
+                    id="file-unpaid"
+                    accept=".csv,text/csv"
+                    hidden
                   />
-                  <div class="segmented" role="group" aria-label="Rows">
-                    <button
-                      class="seg active"
-                      data-scope="paid"
-                      data-kind="rows"
-                      data-value="compact"
-                      aria-pressed="true"
-                      data-i18n="rows.compact"
-                    >
-                      Compact
-                    </button>
-                    <button
-                      class="seg"
-                      data-scope="paid"
-                      data-kind="rows"
-                      data-value="all"
-                      aria-pressed="false"
-                      data-i18n="rows.all"
-                    >
-                      All rows
-                    </button>
-                  </div>
-                  <div class="segmented" role="group" aria-label="Columns">
-                    <button
-                      class="seg active"
-                      data-scope="paid"
-                      data-kind="cols"
-                      data-value="basic"
-                      aria-pressed="true"
-                      data-i18n="cols.basic"
-                    >
-                      Basic
-                    </button>
-                    <button
-                      class="seg"
-                      data-scope="paid"
-                      data-kind="cols"
-                      data-value="all"
-                      aria-pressed="false"
-                      data-i18n="cols.all"
-                    >
-                      All columns
-                    </button>
-                  </div>
                 </div>
-
-                <div id="dups-paid" class="results"></div>
-                <div id="pager-paid" class="pager"></div>
-
-                <div class="row" style="justify-content:flex-end">
-                  <button
-                    id="export-paid"
-                    class="secondary small"
-                    data-i18n="actions.export"
-                  >
-                    Download CSV
-                  </button>
-                </div>
+                <button
+                  id="unpaid-mapping-toggle"
+                  class="secondary small"
+                  type="button"
+                >
+                  Show mapping
+                </button>
+                <div id="unpaid-info" class="hidden"></div>
               </div>
-            </details>
 
-            <!-- CROSS -->
-            <details class="acc" id="acc-cross">
-              <summary>
-                <span data-i18n="results.cross">Paid vs Unpaid</span>
-                <span class="badge" id="count-cross">0</span>
-              </summary>
-              <div class="acc-body">
-                <div class="result-controls">
+              <!-- Paid -->
+              <div>
+                <h4>Paid CSV</h4>
+                <div id="dz-paid" class="dropzone" role="button" tabindex="0">
+                  <div class="dz-title">Drop CSV here or click to select</div>
+                  <div class="dz-sub">
+                    Required: <code>entryDate</code> •
+                    <code>payeeNameRaw</code> • <code>amount</code> •
+                    <code>buildingName</code>
+                  </div>
                   <input
-                    id="filter-cross"
-                    class="search"
-                    type="search"
-                    data-i18n-placeholder="filter.placeholder"
-                    placeholder="Filter vendor/building…"
+                    type="file"
+                    id="file-paid"
+                    accept=".csv,text/csv"
+                    hidden
                   />
-                  <div class="segmented" role="group" aria-label="Rows">
-                    <button
-                      class="seg active"
-                      data-scope="cross"
-                      data-kind="rows"
-                      data-value="compact"
-                      aria-pressed="true"
-                      data-i18n="rows.compact"
-                    >
-                      Compact
-                    </button>
-                    <button
-                      class="seg"
-                      data-scope="cross"
-                      data-kind="rows"
-                      data-value="all"
-                      aria-pressed="false"
-                      data-i18n="rows.all"
-                    >
-                      All rows
-                    </button>
-                  </div>
-                  <div class="segmented" role="group" aria-label="Columns">
-                    <button
-                      class="seg active"
-                      data-scope="cross"
-                      data-kind="cols"
-                      data-value="basic"
-                      aria-pressed="true"
-                      data-i18n="cols.basic"
-                    >
-                      Basic
-                    </button>
-                    <button
-                      class="seg"
-                      data-scope="cross"
-                      data-kind="cols"
-                      data-value="all"
-                      aria-pressed="false"
-                      data-i18n="cols.all"
-                    >
-                      All columns
-                    </button>
-                  </div>
                 </div>
-
-                <div id="cross" class="results"></div>
-                <div id="pager-cross" class="pager"></div>
-
-                <div class="row" style="justify-content:flex-end">
-                  <button
-                    id="export-cross"
-                    class="secondary small"
-                    data-i18n="actions.export"
-                  >
-                    Download CSV
-                  </button>
-                </div>
+                <button
+                  id="paid-mapping-toggle"
+                  class="secondary small"
+                  type="button"
+                >
+                  Show mapping
+                </button>
+                <div id="paid-info" class="hidden"></div>
               </div>
-            </details>
+            </div>
+
+            <!-- RESULTS -->
+            <section class="results" style="margin-top:16px">
+              <!-- UNPAID -->
+              <details class="acc" open id="acc-unpaid">
+                <summary>
+                  <span>Duplicates: Unpaid</span>
+                  <span class="badge" id="count-unpaid">0</span>
+                </summary>
+                <div class="acc-body">
+                  <div class="result-controls">
+                    <input
+                      id="filter-unpaid"
+                      class="search"
+                      type="search"
+                      placeholder="Filter vendor/building…"
+                    />
+                    <div class="segmented" role="group" aria-label="Rows">
+                      <button
+                        class="seg active"
+                        data-scope="unpaid"
+                        data-kind="rows"
+                        data-value="compact"
+                        aria-pressed="true"
+                      >
+                        Compact
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="unpaid"
+                        data-kind="rows"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All rows
+                      </button>
+                    </div>
+                    <div class="segmented" role="group" aria-label="Columns">
+                      <button
+                        class="seg active"
+                        data-scope="unpaid"
+                        data-kind="cols"
+                        data-value="basic"
+                        aria-pressed="true"
+                      >
+                        Basic
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="unpaid"
+                        data-kind="cols"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All columns
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="dups-unpaid" class="results"></div>
+                  <div id="pager-unpaid" class="pager"></div>
+
+                  <div class="row" style="justify-content:flex-end">
+                    <button id="export-unpaid" class="secondary small">
+                      Download CSV
+                    </button>
+                  </div>
+                </div>
+              </details>
+
+              <!-- PAID -->
+              <details class="acc" id="acc-paid">
+                <summary>
+                  <span>Duplicates: Paid</span>
+                  <span class="badge" id="count-paid">0</span>
+                </summary>
+                <div class="acc-body">
+                  <div class="result-controls">
+                    <input
+                      id="filter-paid"
+                      class="search"
+                      type="search"
+                      placeholder="Filter vendor/building…"
+                    />
+                    <div class="segmented" role="group" aria-label="Rows">
+                      <button
+                        class="seg active"
+                        data-scope="paid"
+                        data-kind="rows"
+                        data-value="compact"
+                        aria-pressed="true"
+                      >
+                        Compact
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="paid"
+                        data-kind="rows"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All rows
+                      </button>
+                    </div>
+                    <div class="segmented" role="group" aria-label="Columns">
+                      <button
+                        class="seg active"
+                        data-scope="paid"
+                        data-kind="cols"
+                        data-value="basic"
+                        aria-pressed="true"
+                      >
+                        Basic
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="paid"
+                        data-kind="cols"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All columns
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="dups-paid" class="results"></div>
+                  <div id="pager-paid" class="pager"></div>
+
+                  <div class="row" style="justify-content:flex-end">
+                    <button id="export-paid" class="secondary small">
+                      Download CSV
+                    </button>
+                  </div>
+                </div>
+              </details>
+
+              <!-- CROSS -->
+              <details class="acc" id="acc-cross">
+                <summary>
+                  <span>Paid vs Unpaid</span>
+                  <span class="badge" id="count-cross">0</span>
+                </summary>
+                <div class="acc-body">
+                  <div class="result-controls">
+                    <input
+                      id="filter-cross"
+                      class="search"
+                      type="search"
+                      placeholder="Filter vendor/building…"
+                    />
+                    <div class="segmented" role="group" aria-label="Rows">
+                      <button
+                        class="seg active"
+                        data-scope="cross"
+                        data-kind="rows"
+                        data-value="compact"
+                        aria-pressed="true"
+                      >
+                        Compact
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="cross"
+                        data-kind="rows"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All rows
+                      </button>
+                    </div>
+                    <div class="segmented" role="group" aria-label="Columns">
+                      <button
+                        class="seg active"
+                        data-scope="cross"
+                        data-kind="cols"
+                        data-value="basic"
+                        aria-pressed="true"
+                      >
+                        Basic
+                      </button>
+                      <button
+                        class="seg"
+                        data-scope="cross"
+                        data-kind="cols"
+                        data-value="all"
+                        aria-pressed="false"
+                      >
+                        All columns
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="cross" class="results"></div>
+                  <div id="pager-cross" class="pager"></div>
+
+                  <div class="row" style="justify-content:flex-end">
+                    <button id="export-cross" class="secondary small">
+                      Download CSV
+                    </button>
+                  </div>
+                </div>
+              </details>
+            </section>
           </section>
         </section>
       </section>
@@ -417,8 +498,7 @@
     <footer class="site-footer">
       <div class="container">
         <span class="muted small"
-          >© <span id="year"></span> •
-          <span data-i18n="footer.brand">Duplicates Auditor</span></span
+          >© <span id="year"></span> • Duplicates Auditor</span
         >
       </div>
     </footer>

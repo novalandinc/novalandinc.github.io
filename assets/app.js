@@ -1,116 +1,16 @@
-// ---------------- i18n ----------------
-const I18N = {
-  en: {
-    "app.title": "Duplicates Auditor",
-    "header.title": "Duplicates Auditor",
-    "header.subtitle": "Unpaid & Paid CSV compare",
-    "steps.title": "Getting started",
-    "steps.1": "Upload <strong>Unpaid</strong> CSV",
-    "steps.2": "Upload <strong>Paid</strong> CSV",
-    "steps.3": "Adjust settings (optional)",
-    "steps.4": "Run detection",
-    "settings.dateWindow": "Date window (days)",
-    "settings.amountTol": "Amount tolerance ($)",
-    "settings.advanced": "Advanced options",
-    "settings.vendorNorm": "Normalize vendor names (ignore punctuation, LLC/Inc/Co/Corp, “THE”; “&” → “AND”)",
-    "upload.unpaid": "Unpaid CSV",
-    "upload.paid": "Paid CSV",
-    "upload.drop": "Drop CSV here or click to select",
-    "upload.hintsUnpaid": "Required: EntryDate • VendorName • Amount • PropertyName",
-    "upload.hintsPaid": "Required: entryDate • payeeNameRaw • amount • buildingName",
-    "upload.showMap": "Show mapping",
-    "results.title": "Results",
-    "results.unpaid": "Duplicates: Unpaid",
-    "results.paid": "Duplicates: Paid",
-    "results.cross": "Paid vs Unpaid",
-    "rows.compact": "Compact",
-    "rows.all": "All rows",
-    "cols.basic": "Basic",
-    "cols.all": "All columns",
-    "filter.placeholder": "Filter vendor/building…",
-    "actions.run": "Run detection",
-    "actions.export": "Download CSV",
-    "progress.preparing": "Preparing...",
-    "progress.processing": "Processing...",
-    "progress.matching": "Matching duplicates...",
-    "progress.crossMatch": "Cross-matching paid vs unpaid...",
-    "progress.updating": "Updating results...",
-    "progress.complete": "Complete!",
-    "pager.prev": "‹ Prev",
-    "pager.next": "Next ›",
-    "pager.showing": "Showing",
-    "pager.of": "of",
-    "pager.groups": "groups",
-    "footer.brand": "Duplicates Auditor"
-  },
-  zh: {
-    "app.title": "重复检测工具",
-    "header.title": "重复检测工具",
-    "header.subtitle": "对比未付与已付 CSV",
-    "steps.title": "快速开始",
-    "steps.1": "上传 <strong>未付</strong> CSV",
-    "steps.2": "上传 <strong>已付</strong> CSV",
-    "steps.3": "调整设置（可选）",
-    "steps.4": "开始检测",
-    "settings.dateWindow": "日期窗口（天）",
-    "settings.amountTol": "金额容差（$）",
-    "settings.advanced": "高级选项",
-    "settings.vendorNorm": "归一化供应商名称（忽略标点、LLC/Inc/Co/Corp、“THE”；“&”→“AND”）",
-    "upload.unpaid": "未付 CSV",
-    "upload.paid": "已付 CSV",
-    "upload.drop": "将 CSV 拖入此处或点击选择",
-    "upload.hintsUnpaid": "必需列：EntryDate • VendorName • Amount • PropertyName",
-    "upload.hintsPaid": "必需列：entryDate • payeeNameRaw • amount • buildingName",
-    "upload.showMap": "显示映射",
-    "results.title": "结果",
-    "results.unpaid": "重复项：未付",
-    "results.paid": "重复项：已付",
-    "results.cross": "已付 vs 未付",
-    "rows.compact": "紧凑",
-    "rows.all": "所有行",
-    "cols.basic": "基础",
-    "cols.all": "全部列",
-    "filter.placeholder": "筛选 供应商/楼宇…",
-    "actions.run": "开始检测",
-    "actions.export": "下载 CSV",
-    "progress.preparing": "准备中...",
-    "progress.processing": "处理中...",
-    "progress.matching": "正在匹配重复项...",
-    "progress.crossMatch": "正在交叉匹配已付与未付...",
-    "progress.updating": "正在更新结果...",
-    "progress.complete": "完成！",
-    "pager.prev": "‹ 上一页",
-    "pager.next": "下一页 ›",
-    "pager.showing": "显示",
-    "pager.of": "共",
-    "pager.groups": "组",
-    "footer.brand": "重复检测工具"
-  }
-};
+/* =========================================================
+   Duplicates Auditor — app.js
+   (Group-level horizontal scroll; no per-cell scrollers)
+   ========================================================= */
+
+/* =============== i18n (kept minimal; EN default) =============== */
 let currentLang = "en";
-function t(key){ const dict = I18N[currentLang] || I18N.en; return dict[key] || I18N.en[key] || key; }
 function applyI18n(){
-  // Text nodes
-  document.querySelectorAll("[data-i18n]").forEach(el=>{
-    const key = el.getAttribute("data-i18n");
-    const htmlSafe = ["steps.1","steps.2","steps.3","steps.4"].includes(key);
-    if(htmlSafe) el.innerHTML = t(key);
-    else el.textContent = t(key);
-  });
-  // Placeholder attributes
-  document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{
-    const key = el.getAttribute("data-i18n-placeholder");
-    el.setAttribute("placeholder", t(key));
-  });
-  // Document title and language toggle label
-  document.title = t("app.title");
-  const langLabel = document.getElementById("lang-label");
-  if(langLabel) langLabel.textContent = currentLang === "en" ? "中文" : "EN";
+  document.title = "Duplicates Auditor";
+  document.getElementById("lang-label").textContent = currentLang === "en" ? "中文" : "EN";
 }
 
-// ---------------- Tabs/sections not needed; single tool app ----------------
-
-// ---------------- Column contracts ----------------
+/* =============== Column contracts =============== */
 const CONTRACTS = {
   unpaid: {
     name: "Unpaid",
@@ -140,14 +40,17 @@ const CONTRACTS = {
   }
 };
 
-// ---------------- Helpers ----------------
+/* =============== Helpers =============== */
 const el = sel => document.querySelector(sel);
-const els = sel => Array.from(document.querySelectorAll(sel));
 function normalizeName(name, enabled = true){
   if(name==null) return "";
   let v = String(name);
   if(!enabled) return v.trim().toUpperCase();
-  v = v.toUpperCase().replace(/&/g,"AND").replace(/[^A-Z0-9 ]+/g," ").replace(/\b(LLC|INC|CO|CORP|THE)\b/g,"").replace(/\s+/g," ").trim();
+  v = v.toUpperCase()
+       .replace(/&/g,"AND")
+       .replace(/[^A-Z0-9 ]+/g," ")
+       .replace(/\b(LLC|INC|CO|CORP|THE)\b/g,"")
+       .replace(/\s+/g," ").trim();
   return v;
 }
 function normalizeBuilding(b){ return (b==null?"":String(b)).trim().toUpperCase(); }
@@ -186,8 +89,15 @@ function dateDiffDays(a,b){
   const ms = Math.abs(a.getTime() - b.getTime());
   return Math.floor(ms/86400000);
 }
+function escapeHtml(s){
+  return String(s)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
 
-// ---------------- CSV mapping ----------------
+/* =============== Mapping & extraction =============== */
 function pickColumn(headers, candidates){
   if(!headers || !headers.length) return null;
   const lower = headers.map(h=>h.toLowerCase());
@@ -232,7 +142,7 @@ function extractRecords(rows, mapping, kind, normalizeVendors){
   }).filter(r=> r.amount!=null && r.date!=null && r.vendor && r.building);
 }
 
-// ---------------- Dedup logic ----------------
+/* =============== Duplicate detection =============== */
 function makeKey(rec, amountTolCents){
   const amt = Math.round(rec.amount*100);
   const bucket = Math.round(amt/amountTolCents);
@@ -278,7 +188,13 @@ function crossMatch(unpaid, paid, daysTol){
   return matches;
 }
 
-// ---------------- Export helpers ----------------
+/* =============== Export helpers =============== */
+function fmtAmount(a){
+  const n = parseMoney(a);
+  return n==null ? (a ?? "") : n.toLocaleString(undefined,{style:"currency",currency:"USD"});
+}
+const BASIC_COLS = ["__row","buildingRaw","vendorRaw","dateRaw","amountRaw"];
+const EXTRA_COLS = ["reference","memo","kind"];
 function pairsToRows(pairs, sideA="A", sideB="B"){
   const out=[];
   for(let i=0;i<pairs.length;i++){
@@ -308,25 +224,7 @@ function downloadCSV(filename, rows){
   setTimeout(()=>URL.revokeObjectURL(url), 1200);
 }
 
-// ---------------- State ----------------
-let unpaidRows=null, unpaidHeaders=null, unpaidMap=null, unpaidRecords=null, unpaidMissing=[];
-let paidRows=null,   paidHeaders=null,   paidMap=null,   paidRecords=null,   paidMissing=[];
-let lastResults = { dupsUnpaid: [], dupsPaid: [], cross: [] };
-let lastParams = { daysTol: 3, amountTol: 1 };
-
-const viewState = {
-  unpaid: { cols:"basic", rows:"compact", filter:"", expanded:new Set(), page:1, pageSize:10 },
-  paid:   { cols:"basic", rows:"compact", filter:"", expanded:new Set(), page:1, pageSize:10 },
-  cross:  { cols:"basic", rows:"compact", filter:"", expanded:new Set(), page:1, pageSize:10 },
-};
-
-// ---------------- Grouping + rendering (with pagination) ----------------
-const BASIC_COLS = ["__row","buildingRaw","vendorRaw","dateRaw","amountRaw"];
-const EXTRA_COLS = ["reference","memo","kind"];
-function fmtAmount(a){
-  const n = parseMoney(a);
-  return n==null ? (a ?? "") : n.toLocaleString(undefined,{style:"currency",currency:"USD"});
-}
+/* =============== Grouping + rendering (shared) =============== */
 function recordId(r){ return `${r.kind}|${r.__row}|${r.amountRaw}|${r.dateRaw}`; }
 function keyFor(rec, amountTolCents, forCross=false){
   if(forCross){ return `${rec.building}|${rec.vendor}|${Math.round(rec.amount*100)}`; }
@@ -373,7 +271,6 @@ function buildGroups(pairs, amountTolCents, forCross=false){
 function renderPager(scope, total){
   const state = viewState[scope];
   const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
-  // Ensure page in range
   if(state.page > totalPages) state.page = totalPages;
   if(state.page < 1) state.page = 1;
 
@@ -382,9 +279,9 @@ function renderPager(scope, total){
 
   const host = document.getElementById(`pager-${scope}`);
   host.innerHTML = `
-    <button class="page-btn" data-scope="${scope}" data-dir="prev" ${state.page<=1?'disabled':''}>${t("pager.prev")}</button>
-    <span class="page-info">${t("pager.showing")} ${start}–${end} ${t("pager.of")} ${total} ${t("pager.groups")}</span>
-    <button class="page-btn" data-scope="${scope}" data-dir="next" ${state.page>=totalPages?'disabled':''}>${t("pager.next")}</button>
+    <button class="page-btn" data-scope="${scope}" data-dir="prev" ${state.page<=1?'disabled':''}>‹ Prev</button>
+    <span class="page-info">Showing ${start}–${end} of ${total} groups</span>
+    <button class="page-btn" data-scope="${scope}" data-dir="next" ${state.page>=totalPages?'disabled':''}>Next ›</button>
     <label class="page-info" for="ps-${scope}">|</label>
     <select id="ps-${scope}" class="page-size" data-scope="${scope}">
       <option value="5"  ${state.pageSize===5?'selected':''}>5</option>
@@ -400,7 +297,6 @@ function renderSection(containerId, pairs, scope, forCross=false){
   const groups = buildGroups(pairs, amountTolCents, forCross);
   const state = viewState[scope];
 
-  // Filter
   const filter = (state.filter||"").trim().toLowerCase();
   const filtered = filter
     ? groups.filter(g => g.records.some(r =>
@@ -408,7 +304,6 @@ function renderSection(containerId, pairs, scope, forCross=false){
         (r.buildingRaw||"").toLowerCase().includes(filter)))
     : groups;
 
-  // Pagination
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
   if(state.page > totalPages) state.page = totalPages;
@@ -417,7 +312,6 @@ function renderSection(containerId, pairs, scope, forCross=false){
   const endIdx   = Math.min(total, startIdx + state.pageSize);
   const pageGroups = filtered.slice(startIdx, endIdx);
 
-  // Column/row modes
   const rowsMode = state.rows;
   const colsMode = state.cols;
   const colsAll = [...BASIC_COLS, ...EXTRA_COLS];
@@ -438,16 +332,19 @@ function renderSection(containerId, pairs, scope, forCross=false){
     const tableRows = [];
     for(const r of toShow){
       const cells = colsAll.map(c=>{
-        const cls = EXTRA_COLS.includes(c) ? "col-extra" : "";
-        const val = (c==="amountRaw") ? fmtAmount(r[c]) : (r[c] ?? "");
-        return `<td class="${cls}">${val}</td>`;
+        const isExtra = EXTRA_COLS.includes(c);
+        const raw = c==="amountRaw" ? fmtAmount(r[c]) : (r[c] ?? "");
+        const tdClass = `${isExtra?"col-extra":""}`;
+        // Title attribute provides quick full-text on hover, too
+        const titleAttr = `title="${escapeHtml(r[c] ?? "")}"`;
+        return `<td class="${tdClass}" ${titleAttr}>${escapeHtml(raw)}</td>`;
       }).join("");
       tableRows.push(`<tr><td class="muted">${r.__row}</td>${cells}</tr>`);
     }
 
     const remaining = all.length - toShow.length;
     const moreBtn = remaining>0
-      ? `<button class="link-btn show-toggle" data-scope="${scope}" data-group="${g.id}" aria-expanded="false">${t("rows.all").replace("All rows","Show "+remaining+" more")}</button>`
+      ? `<button class="link-btn show-toggle" data-scope="${scope}" data-group="${g.id}" aria-expanded="false">Show ${remaining} more</button>`
       : (showAll && all.length>2
           ? `<button class="link-btn show-toggle" data-scope="${scope}" data-group="${g.id}" aria-expanded="true">Collapse</button>`
           : "");
@@ -456,10 +353,10 @@ function renderSection(containerId, pairs, scope, forCross=false){
       <div class="dup-group ${colsMode==="basic"?"cols-basic":"cols-all"}" data-group="${g.id}">
         <div class="dup-head">
           <div class="dup-meta">
-            <span class="kv"><span class="k">Vendor</span> ${ven || "—"}</span>
-            <span class="kv"><span class="k">Building</span> ${bld || "—"}</span>
-            <span class="kv"><span class="k">Amount</span> ${amt || "≈"}</span>
-            <span class="kv"><span class="k">Dates</span> ${start || "—"} → ${end || "—"}</span>
+            <span class="kv"><span class="k">Vendor</span> ${escapeHtml(ven || "—")}</span>
+            <span class="kv"><span class="k">Building</span> ${escapeHtml(bld || "—")}</span>
+            <span class="kv"><span class="k">Amount</span> ${escapeHtml(amt || "≈")}</span>
+            <span class="kv"><span class="k">Dates</span> ${escapeHtml(start || "—")} → ${escapeHtml(end || "—")}</span>
           </div>
           <div class="group-actions">
             <span class="count-chip">${all.filter(r=>r.kind==="Unpaid").length} Unpaid • ${all.filter(r=>r.kind==="Paid").length} Paid</span>
@@ -480,50 +377,80 @@ function renderSection(containerId, pairs, scope, forCross=false){
   renderPager(scope, total);
 }
 
-// ---------------- Results bridge ----------------
-function renderResults(dupsUnpaid, dupsPaid, cross){
-  lastResults = { dupsUnpaid, dupsPaid, cross };
-  document.getElementById("count-unpaid").textContent = dupsUnpaid.length;
-  document.getElementById("count-paid").textContent   = dupsPaid.length;
-  document.getElementById("count-cross").textContent  = cross.length;
+/* =============== State =============== */
+let mode = "single"; // 'single' | 'legacy'
 
-  renderSection("dups-unpaid", dupsUnpaid, "unpaid", false);
-  renderSection("dups-paid",   dupsPaid,   "paid",   false);
-  renderSection("cross",       cross,      "cross",  true);
-}
+// Single-mode
+let singleRows=null, singleHeaders=null, singleMap=null, singleRecords=null, singleMissing=[], singleContract="";
 
-// ---------------- Progress ----------------
-function showProgress(){
-  el("#progress-container").classList.remove("hidden");
-  el("#run").disabled = true;
-  el("#run").textContent = t("progress.processing");
-}
-function hideProgress(){
-  el("#progress-container").classList.add("hidden");
-  el("#run").disabled = false;
-  el("#run").textContent = t("actions.run");
-}
-function updateProgress(percent, labelKey="progress.preparing"){
-  el("#progress-fill").style.width = `${Math.max(0, Math.min(100, percent))}%`;
-  el("#progress-text").textContent = `${Math.round(Math.max(0, Math.min(100, percent)))}%`;
-  el("#progress-label").textContent = t(labelKey);
-}
+// Legacy-mode
+let unpaidRows=null, unpaidHeaders=null, unpaidMap=null, unpaidRecords=null, unpaidMissing=[];
+let paidRows=null,   paidHeaders=null,   paidMap=null,   paidRecords=null,   paidMissing=[];
 
-// ---------------- Readiness ----------------
+let lastResults = { single: [], dupsUnpaid: [], dupsPaid: [], cross: [] };
+let lastParams = { daysTol: 3, amountTol: 1 };
+
+const viewState = {
+  single: { cols:"basic", rows:"compact", filter:"", expanded:new Set(), page:1, pageSize:10 },
+  unpaid: { cols:"basic", rows:"compact", filter:"", expanded:new Set(), page:1, pageSize:10 },
+  paid:   { cols:"basic", rows:"compact", filter:"", expanded:new Set(), page:1, pageSize:10 },
+  cross:  { cols:"basic", rows:"compact", filter:"", expanded:new Set(), page:1, pageSize:10 },
+};
+
+/* =============== Mode UI & readiness =============== */
+function setMode(newMode){
+  if(mode === newMode) return;
+  mode = newMode;
+
+  const tabSingle = el("#tab-single");
+  const tabLegacy = el("#tab-legacy");
+  tabSingle.classList.toggle("active", mode==="single");
+  tabLegacy.classList.toggle("active", mode==="legacy");
+  tabSingle.setAttribute("aria-selected", String(mode==="single"));
+  tabLegacy.setAttribute("aria-selected", String(mode==="legacy"));
+
+  el("#panel-single").classList.toggle("hidden", mode!=="single");
+  el("#panel-legacy").classList.toggle("hidden", mode!=="legacy");
+
+  const steps = el("#steps");
+  if(mode==="single"){
+    steps.innerHTML = `
+      <li>Upload <strong>one</strong> CSV</li>
+      <li>Adjust settings (optional)</li>
+      <li>Run detection</li>
+    `;
+  }else{
+    steps.innerHTML = `
+      <li>Upload <strong>Unpaid</strong> CSV</li>
+      <li>Upload <strong>Paid</strong> CSV</li>
+      <li>Adjust settings (optional)</li>
+      <li>Run detection</li>
+    `;
+  }
+  updateRunButton();
+}
 function computeReadinessIssues(){
   const issues=[];
-  if(!unpaidRows) issues.push("Upload Unpaid CSV.");
-  if(!paidRows)   issues.push("Upload Paid CSV.");
-
-  if(unpaidRows){
-    if(unpaidMissing.length) issues.push("Unpaid: missing required columns → "+unpaidMissing.join(", "));
-    const n = (unpaidRecords&&unpaidRecords.length)||0;
-    if(n===0) issues.push("Unpaid: 0 usable rows (need building, vendor, date, amount).");
-  }
-  if(paidRows){
-    if(paidMissing.length) issues.push("Paid: missing required columns → "+paidMissing.join(", "));
-    const n = (paidRecords&&paidRecords.length)||0;
-    if(n===0) issues.push("Paid: 0 usable rows (need building, vendor, date, amount).");
+  if(mode==="single"){
+    if(!singleRows) issues.push("Upload a CSV.");
+    if(singleRows){
+      if(singleMissing.length) issues.push("Missing required columns → "+singleMissing.join(", "));
+      const n = (singleRecords&&singleRecords.length)||0;
+      if(n===0) issues.push("0 usable rows (need building, vendor, date, amount).");
+    }
+  }else{
+    if(!unpaidRows) issues.push("Upload Unpaid CSV.");
+    if(!paidRows)   issues.push("Upload Paid CSV.");
+    if(unpaidRows){
+      if(unpaidMissing.length) issues.push("Unpaid: missing required columns → "+unpaidMissing.join(", "));
+      const n = (unpaidRecords&&unpaidRecords.length)||0;
+      if(n===0) issues.push("Unpaid: 0 usable rows (need building, vendor, date, amount).");
+    }
+    if(paidRows){
+      if(paidMissing.length) issues.push("Paid: missing required columns → "+paidMissing.join(", "));
+      const n = (paidRecords&&paidRecords.length)||0;
+      if(n===0) issues.push("Paid: 0 usable rows (need building, vendor, date, amount).");
+    }
   }
   return issues;
 }
@@ -534,15 +461,15 @@ function updateReadinessUI(){
 }
 function isReady(){ return computeReadinessIssues().length===0; }
 function updateRunButton(){
-  const btn = document.getElementById("run"); if(!btn) return;
+  const btn = document.getElementById("run");
   const ready = isReady();
   btn.disabled = !ready;
   btn.setAttribute("aria-disabled", String(!ready));
-  btn.title = ready ? "" : "Upload both CSVs and satisfy required fields";
+  btn.title = ready ? "" : (mode==="single" ? "Upload a CSV and satisfy required fields" : "Upload both CSVs and satisfy required fields");
   updateReadinessUI();
 }
 
-// ---------------- Controls wiring ----------------
+/* =============== Controls wiring =============== */
 function wireDropzone(id, inputId, onFile){
   const dz = document.getElementById(id);
   const fileInput = document.getElementById(inputId);
@@ -568,9 +495,9 @@ function wireDropzone(id, inputId, onFile){
   });
 }
 
+/* =============== View wiring (filters, toggles, pager) =============== */
 function initResultControls(){
-  // Filters
-  ["unpaid","paid","cross"].forEach(scope=>{
+  ["single","unpaid","paid","cross"].forEach(scope=>{
     const input = document.getElementById(`filter-${scope}`);
     if(input){
       let tmr=null;
@@ -578,19 +505,18 @@ function initResultControls(){
         clearTimeout(tmr);
         tmr=setTimeout(()=>{
           viewState[scope].filter = input.value || "";
-          viewState[scope].page = 1;  // reset to first page when filtering
+          viewState[scope].page = 1;
           rerender(scope);
         }, 150);
       });
     }
   });
 
-  // Segmented toggles
   document.querySelectorAll(".segmented .seg").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const scope = btn.dataset.scope;
-      const kind  = btn.dataset.kind;   // 'rows' | 'cols'
-      const value = btn.dataset.value;  // 'compact' | 'all'  OR  'basic' | 'all'
+      const kind  = btn.dataset.kind;
+      const value = btn.dataset.value;
       const siblings = btn.parentElement.querySelectorAll(".seg");
       siblings.forEach(b=>{
         if(b.dataset.kind===kind){
@@ -599,14 +525,14 @@ function initResultControls(){
         }
       });
       viewState[scope][kind] = value;
-      viewState[scope].page = 1; // reset page when view changes
+      viewState[scope].page = 1;
       rerender(scope);
     });
   });
 
-  // "Show more / Collapse" per-group
-  ["dups-unpaid","dups-paid","cross"].forEach(containerId=>{
+  ["dups-single","dups-unpaid","dups-paid","cross"].forEach(containerId=>{
     const elx = document.getElementById(containerId);
+    if(!elx) return;
     elx.addEventListener("click", e=>{
       const btn = e.target.closest(".show-toggle");
       if(!btn) return;
@@ -618,9 +544,9 @@ function initResultControls(){
     });
   });
 
-  // Pager delegation
-  ["pager-unpaid","pager-paid","pager-cross"].forEach(pid=>{
+  ["pager-single","pager-unpaid","pager-paid","pager-cross"].forEach(pid=>{
     const pe = document.getElementById(pid);
+    if(!pe) return;
     pe.addEventListener("click", e=>{
       const b = e.target.closest(".page-btn");
       if(!b) return;
@@ -641,12 +567,50 @@ function initResultControls(){
 }
 
 function rerender(scope){
-  if(scope==="unpaid") renderSection("dups-unpaid", lastResults.dupsUnpaid, "unpaid", false);
+  if(scope==="single") renderSection("dups-single", lastResults.single, "single", false);
+  else if(scope==="unpaid") renderSection("dups-unpaid", lastResults.dupsUnpaid, "unpaid", false);
   else if(scope==="paid") renderSection("dups-paid", lastResults.dupsPaid, "paid", false);
   else if(scope==="cross") renderSection("cross", lastResults.cross, "cross", true);
 }
 
-// ---------------- Detection run ----------------
+/* =============== Single-mode: auto-detect mapping =============== */
+function chooseBestContract(headers, rows){
+  const tries = [
+    ["unpaid", CONTRACTS.unpaid],
+    ["paid", CONTRACTS.paid]
+  ].map(([key, c])=>{
+    const {mapping, missing} = mapRecords(rows, headers, c);
+    const normalizeVendors = document.getElementById("norm-vendor").checked;
+    const recs = extractRecords(rows, mapping, c.name, normalizeVendors);
+    return { key, contract:c, mapping, missing, usable: recs.length, records: recs };
+  });
+
+  tries.sort((a,b)=>{
+    if(a.missing.length !== b.missing.length) return a.missing.length - b.missing.length;
+    return b.usable - a.usable;
+  });
+
+  return tries[0];
+}
+
+/* =============== Progress helpers =============== */
+function showProgress(){
+  el("#progress-container").classList.remove("hidden");
+  el("#run").disabled = true;
+  el("#run").textContent = "Processing...";
+}
+function hideProgress(){
+  el("#progress-container").classList.add("hidden");
+  el("#run").disabled = false;
+  el("#run").textContent = "Run detection";
+}
+function updateProgress(percent, label="Preparing..."){
+  el("#progress-fill").style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  el("#progress-text").textContent = `${Math.round(Math.max(0, Math.min(100, percent)))}%`;
+  el("#progress-label").textContent = label;
+}
+
+/* =============== Run detection (mode aware) =============== */
 function runDetection(){
   const issues = computeReadinessIssues();
   if(issues.length){ alert('Cannot run yet:\n- ' + issues.join('\n- ')); return; }
@@ -655,43 +619,97 @@ function runDetection(){
   const amountTol = parseFloat(document.getElementById("amount-window").value || "1");
   lastParams = { daysTol, amountTol };
 
-  showProgress(); updateProgress(0, "progress.preparing");
+  showProgress(); updateProgress(0, "Preparing...");
   setTimeout(()=>{
-    updateProgress(35, "progress.matching");
-    const dupsUnpaid = detectDuplicates(unpaidRecords, daysTol, amountTol);
-    const dupsPaid   = detectDuplicates(paidRecords,   daysTol, amountTol);
-    updateProgress(65, "progress.crossMatch");
-    const cross      = crossMatch(unpaidRecords, paidRecords, daysTol);
-    updateProgress(90, "progress.updating");
-    renderResults(dupsUnpaid, dupsPaid, cross);
-    updateProgress(100, "progress.complete");
+    if(mode==="single"){
+      updateProgress(40, "Matching duplicates...");
+      const dups = detectDuplicates(singleRecords, daysTol, amountTol);
+      updateProgress(85, "Updating results...");
+      lastResults.single = dups;
+      document.getElementById("count-single").textContent = dups.length;
+      renderSection("dups-single", dups, "single", false);
+    }else{
+      updateProgress(35, "Matching duplicates...");
+      const dupsUnpaid = detectDuplicates(unpaidRecords, daysTol, amountTol);
+      const dupsPaid   = detectDuplicates(paidRecords,   daysTol, amountTol);
+      updateProgress(65, "Cross-matching paid vs unpaid...");
+      const cross      = crossMatch(unpaidRecords, paidRecords, daysTol);
+      updateProgress(90, "Updating results...");
+      lastResults.dupsUnpaid = dupsUnpaid;
+      lastResults.dupsPaid   = dupsPaid;
+      lastResults.cross      = cross;
+      document.getElementById("count-unpaid").textContent = dupsUnpaid.length;
+      document.getElementById("count-paid").textContent   = dupsPaid.length;
+      document.getElementById("count-cross").textContent  = cross.length;
+      renderSection("dups-unpaid", dupsUnpaid, "unpaid", false);
+      renderSection("dups-paid",   dupsPaid,   "paid",   false);
+      renderSection("cross",       cross,      "cross",  true);
+    }
+    updateProgress(100, "Complete!");
     setTimeout(hideProgress, 700);
   }, 50);
 }
 
-// ---------------- Init ----------------
+/* =============== Mapping panel helper =============== */
+function showMapping(elId, contractName, mapping, missing, headers){
+  const host = document.getElementById(elId);
+  const rows = Object.entries(mapping).map(([k,v])=> `<tr><td>${k}</td><td><code>${v||""}</code></td></tr>`).join("");
+  const miss = (missing && missing.length)
+    ? `<div style="color:#b91c1c"><strong>Missing: ${missing.join(", ")}</strong></div>`
+    : `<div style="color:#047857">Ready</div>`;
+  host.innerHTML = `
+    <div><strong>Detected mapping</strong> · <em>${contractName}</em></div>
+    ${miss}
+    <div class="table-wrap" style="margin-top:8px">
+      <table class="table">
+        <thead><tr><th>Field</th><th>Column</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="muted small" style="margin-top:6px">Headers: ${headers.map(h=>`<code>${h}</code>`).join(" ")}</div>
+  `;
+}
+
+/* =============== Boot =============== */
 document.addEventListener("DOMContentLoaded", ()=>{
   document.getElementById("year").textContent = new Date().getFullYear();
 
-  // Language toggle
   document.getElementById("lang-toggle").addEventListener("click", ()=>{
     currentLang = (currentLang === "en" ? "zh" : "en");
     applyI18n();
-    // Also re-render pagers to update labels
-    ["unpaid","paid","cross"].forEach(scope=> renderPager(scope, 0)); // dummy to refresh buttons text
-    // And rerender sections to refresh "Collapse/Show" text
-    rerender("unpaid"); rerender("paid"); rerender("cross");
   });
   applyI18n();
 
-  document.getElementById("unpaid-mapping-toggle").addEventListener("click", ()=> document.getElementById("unpaid-info").classList.toggle("hidden"));
-  document.getElementById("paid-mapping-toggle").addEventListener("click",  ()=> document.getElementById("paid-info").classList.toggle("hidden"));
+  document.getElementById("tab-single").addEventListener("click", ()=> setMode("single"));
+  document.getElementById("tab-legacy").addEventListener("click", ()=> setMode("legacy"));
+  setMode("single");
+
   document.getElementById("run").addEventListener("click", runDetection);
 
   initResultControls();
   updateRunButton();
 
-  // Uploader wiring
+  /* Single uploader */
+  wireDropzone("dz-single", "file-single", file=>{
+    Papa.parse(file, {
+      header:true, skipEmptyLines:true, dynamicTyping:false,
+      complete: results=>{
+        singleRows = results.data; singleHeaders = results.meta.fields || [];
+        const best = chooseBestContract(singleHeaders, singleRows);
+        singleContract = best.contract.name;
+        singleMap = best.mapping; singleMissing = best.missing; singleRecords = best.records;
+
+        showMapping("single-info", `Auto • ${best.contract.name}`, best.mapping, best.missing, singleHeaders);
+        const dzTitle = document.querySelector("#dz-single .dz-title");
+        if(dzTitle){ dzTitle.textContent = `${file.name} – ${singleRows.length} rows loaded (${best.contract.name})`; }
+        updateRunButton();
+      },
+      error: err => alert("Failed to parse CSV: "+err)
+    });
+  });
+  document.getElementById("single-mapping-toggle").addEventListener("click", ()=> document.getElementById("single-info").classList.toggle("hidden"));
+
+  /* Legacy uploaders */
   wireDropzone("dz-unpaid", "file-unpaid", file=>{
     Papa.parse(file, {
       header:true, skipEmptyLines:true, dynamicTyping:false,
@@ -709,7 +727,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
       error: err => alert("Failed to parse CSV: "+err)
     });
   });
-
   wireDropzone("dz-paid", "file-paid", file=>{
     Papa.parse(file, {
       header:true, skipEmptyLines:true, dynamicTyping:false,
@@ -728,7 +745,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
   });
 
-  // Export buttons (export all pairs, not only current page)
+  // Exports
+  document.getElementById("export-single").addEventListener("click", ()=>{
+    const rows = pairsToRows(lastResults.single,"A","B");
+    rows.length ? downloadCSV("duplicates.csv", rows) : alert("No duplicates found.");
+  });
   document.getElementById("export-unpaid").addEventListener("click", ()=>{
     const rows = pairsToRows(lastResults.dupsUnpaid,"A","B");
     rows.length ? downloadCSV("duplicates_unpaid.csv", rows) : alert("No duplicates found in Unpaid section.");
@@ -742,23 +763,3 @@ document.addEventListener("DOMContentLoaded", ()=>{
     rows.length ? downloadCSV("paid_vs_unpaid.csv", rows) : alert("No matches found between Paid and Unpaid.");
   });
 });
-
-// --------------- Mapping UI ---------------
-function showMapping(elId, contractName, mapping, missing, headers){
-  const el = document.getElementById(elId);
-  const rows = Object.entries(mapping).map(([k,v])=> `<tr><td>${k}</td><td><code>${v||""}</code></td></tr>`).join("");
-  const miss = (missing && missing.length)
-    ? `<div style="color:#b91c1c"><strong>Missing: ${missing.join(", ")}</strong></div>`
-    : `<div style="color:#047857">Ready</div>`;
-  el.innerHTML = `
-    <div><strong>Detected mapping</strong> · <em>${contractName}</em></div>
-    ${miss}
-    <div class="table-wrap" style="margin-top:8px">
-      <table class="table">
-        <thead><tr><th>Field</th><th>Column</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <div class="muted small" style="margin-top:6px">Headers: ${headers.map(h=>`<code>${h}</code>`).join(" ")}</div>
-  `;
-}
