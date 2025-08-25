@@ -1,508 +1,210 @@
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="en" data-theme="light">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
-    <title>Duplicates Auditor</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Internal Tools Database</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:,">
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Internal Tools</div>
+    <div class="row">
+      <button id="nav-duplicates" class="btn">Duplicates Auditor</button>
+      <button id="nav-compare" class="btn">Transaction History Compare</button>
+    </div>
+  </header>
 
-    <link rel="stylesheet" href="assets/style.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+  <main class="container">
+    <!-- Home -->
+    <section id="panel-home">
+      <h2>Choose a tool</h2>
+      <div class="grid cards">
+        <div id="nav-duplicates-card" class="card tile" tabindex="0" role="button" aria-label="Open Duplicates Auditor">
+          <img alt="" src="https://img.icons8.com/fluency/48/compass.png" width="36" height="36"/>
+          <div>
+            <div class="card-title">Duplicates Auditor</div>
+            <div class="muted">Single file • Two files (legacy-like)</div>
+            <div class="muted small">CSV or Excel (.xlsx/.xls)</div>
+          </div>
+        </div>
 
-    <!-- CSV parsing -->
-    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-  </head>
-  <body>
-    <header class="site-header">
-      <div class="brand">
-        <div class="logo">DA</div>
-        <div>
-          <div class="title">Duplicates Auditor</div>
-          <div class="subtitle">Single CSV (default) • Two CSVs (legacy)</div>
+        <div id="nav-compare-card" class="card tile" tabindex="0" role="button" aria-label="Open Transaction History Compare">
+          <img alt="" src="https://img.icons8.com/fluency/48/compare.png" width="36" height="36"/>
+          <div>
+            <div class="card-title">Transaction History Compare</div>
+            <div class="muted">Match by Card + (optional) Description + Date tolerance + |Amount|</div>
+            <div class="muted small">CSV or Excel (.xlsx/.xls)</div>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div class="header-actions">
-        <button
-          id="lang-toggle"
-          class="icon-button"
-          aria-label="Toggle language"
-        >
-          <span class="icon" aria-hidden="true">🌐</span>
-          <span id="lang-label">中文</span>
-        </button>
+    <!-- Duplicates Auditor -->
+    <section id="panel-duplicates" class="hidden">
+      <div class="row" style="justify-content:space-between;">
+        <h2>Duplicates Auditor</h2>
+        <button id="back-home-1" class="btn">← Back</button>
       </div>
-    </header>
 
-    <main class="container">
-      <section class="layout">
-        <!-- SIDEBAR -->
-        <aside class="sidebar">
-          <h3>Getting started</h3>
-          <ol class="steps" id="steps">
-            <!-- Filled by JS depending on mode -->
-          </ol>
-
-          <div class="settings card">
-            <div class="group">
-              <label for="days-window">Date window (days)</label>
-              <input id="days-window" type="number" min="0" value="3" />
-            </div>
-            <div class="group">
-              <label for="amount-window">Amount tolerance ($)</label>
-              <input
-                id="amount-window"
-                type="number"
-                min="0"
-                step="0.01"
-                value="1"
-              />
-            </div>
-
-            <details>
-              <summary>Advanced options</summary>
-              <label class="checkbox">
-                <input id="norm-vendor" type="checkbox" checked />
-                <span
-                  >Normalize vendor names (ignore punctuation, LLC/Inc/Co/Corp,
-                  “THE”; “&” → “AND”)</span
-                >
-              </label>
-            </details>
-
-            <button id="run" class="wide primary">Run detection</button>
-            <div id="readiness" class="hint small muted"></div>
-
-            <div
-              id="progress-container"
-              class="progress-container hidden"
-              role="status"
-              aria-live="polite"
-            >
-              <div id="progress-label" class="progress-label">Preparing…</div>
-              <div class="progress-bar">
-                <div id="progress-fill" class="progress-fill"></div>
-              </div>
-              <div id="progress-text" class="progress-text">0%</div>
-            </div>
+      <div class="card">
+        <div class="card-title">Single file — find duplicate Txn# on same date</div>
+        <div class="row">
+          <div class="field" style="min-width:260px;flex:1;">
+            <div class="dz" id="dz-single" tabindex="0" aria-live="polite">Click or drop a CSV/XLSX/XLS here</div>
+            <input type="file" id="file-single" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls" class="hidden">
           </div>
-        </aside>
-
-        <!-- CONTENT -->
-        <section class="content">
-          <!-- MODE TABS -->
-          <div class="tabs" role="tablist" aria-label="Mode">
-            <button
-              id="tab-single"
-              class="tab active"
-              role="tab"
-              aria-selected="true"
-              aria-controls="panel-single"
-            >
-              Single CSV
-            </button>
-            <button
-              id="tab-legacy"
-              class="tab"
-              role="tab"
-              aria-selected="false"
-              aria-controls="panel-legacy"
-            >
-              Two CSVs (Legacy)
-            </button>
+          <div class="field">
+            <label>Date tolerance (days)</label>
+            <input id="days-single" class="input" type="number" min="0" value="0">
           </div>
-
-          <!-- SINGLE MODE PANEL -->
-          <section
-            id="panel-single"
-            class="tab-panel card"
-            role="tabpanel"
-            aria-labelledby="tab-single"
-          >
-            <div class="uploader">
-              <div>
-                <h4>CSV</h4>
-                <div id="dz-single" class="dropzone" role="button" tabindex="0">
-                  <div class="dz-title">Drop CSV here or click to select</div>
-                  <div class="dz-sub">
-                    Will auto-detect columns. Typical required fields:
-                    <code>EntryDate</code>/<code>entryDate</code> •
-                    <code>VendorName</code>/<code>payeeNameRaw</code> •
-                    <code>Amount</code>/<code>amount</code> •
-                    <code>PropertyName</code>/<code>buildingName</code>
-                  </div>
-                  <input
-                    type="file"
-                    id="file-single"
-                    accept=".csv,text/csv"
-                    hidden
-                  />
-                </div>
-                <button
-                  id="single-mapping-toggle"
-                  class="secondary small"
-                  type="button"
-                >
-                  Show mapping
-                </button>
-                <div id="single-info" class="hidden"></div>
-              </div>
-            </div>
-
-            <section class="results" style="margin-top:16px">
-              <details class="acc" open id="acc-single">
-                <summary>
-                  <span>Duplicates</span>
-                  <span class="badge" id="count-single">0</span>
-                </summary>
-                <div class="acc-body">
-                  <div class="result-controls">
-                    <input
-                      id="filter-single"
-                      class="search"
-                      type="search"
-                      placeholder="Filter vendor/building…"
-                    />
-                    <div class="segmented" role="group" aria-label="Rows">
-                      <button
-                        class="seg active"
-                        data-scope="single"
-                        data-kind="rows"
-                        data-value="compact"
-                        aria-pressed="true"
-                      >
-                        Compact
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="single"
-                        data-kind="rows"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All rows
-                      </button>
-                    </div>
-                    <div class="segmented" role="group" aria-label="Columns">
-                      <button
-                        class="seg active"
-                        data-scope="single"
-                        data-kind="cols"
-                        data-value="basic"
-                        aria-pressed="true"
-                      >
-                        Basic
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="single"
-                        data-kind="cols"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All columns
-                      </button>
-                    </div>
-                  </div>
-
-                  <div id="dups-single" class="results"></div>
-                  <div id="pager-single" class="pager"></div>
-
-                  <div class="row" style="justify-content:flex-end">
-                    <button id="export-single" class="secondary small">
-                      Download CSV
-                    </button>
-                  </div>
-                </div>
-              </details>
-            </section>
-          </section>
-
-          <!-- LEGACY PANEL (unchanged behavior) -->
-          <section
-            id="panel-legacy"
-            class="tab-panel card hidden"
-            role="tabpanel"
-            aria-labelledby="tab-legacy"
-          >
-            <div class="uploader">
-              <!-- Unpaid -->
-              <div>
-                <h4>Unpaid CSV</h4>
-                <div id="dz-unpaid" class="dropzone" role="button" tabindex="0">
-                  <div class="dz-title">Drop CSV here or click to select</div>
-                  <div class="dz-sub">
-                    Required: <code>EntryDate</code> • <code>VendorName</code> •
-                    <code>Amount</code> • <code>PropertyName</code>
-                  </div>
-                  <input
-                    type="file"
-                    id="file-unpaid"
-                    accept=".csv,text/csv"
-                    hidden
-                  />
-                </div>
-                <button
-                  id="unpaid-mapping-toggle"
-                  class="secondary small"
-                  type="button"
-                >
-                  Show mapping
-                </button>
-                <div id="unpaid-info" class="hidden"></div>
-              </div>
-
-              <!-- Paid -->
-              <div>
-                <h4>Paid CSV</h4>
-                <div id="dz-paid" class="dropzone" role="button" tabindex="0">
-                  <div class="dz-title">Drop CSV here or click to select</div>
-                  <div class="dz-sub">
-                    Required: <code>entryDate</code> •
-                    <code>payeeNameRaw</code> • <code>amount</code> •
-                    <code>buildingName</code>
-                  </div>
-                  <input
-                    type="file"
-                    id="file-paid"
-                    accept=".csv,text/csv"
-                    hidden
-                  />
-                </div>
-                <button
-                  id="paid-mapping-toggle"
-                  class="secondary small"
-                  type="button"
-                >
-                  Show mapping
-                </button>
-                <div id="paid-info" class="hidden"></div>
-              </div>
-            </div>
-
-            <!-- RESULTS -->
-            <section class="results" style="margin-top:16px">
-              <!-- UNPAID -->
-              <details class="acc" open id="acc-unpaid">
-                <summary>
-                  <span>Duplicates: Unpaid</span>
-                  <span class="badge" id="count-unpaid">0</span>
-                </summary>
-                <div class="acc-body">
-                  <div class="result-controls">
-                    <input
-                      id="filter-unpaid"
-                      class="search"
-                      type="search"
-                      placeholder="Filter vendor/building…"
-                    />
-                    <div class="segmented" role="group" aria-label="Rows">
-                      <button
-                        class="seg active"
-                        data-scope="unpaid"
-                        data-kind="rows"
-                        data-value="compact"
-                        aria-pressed="true"
-                      >
-                        Compact
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="unpaid"
-                        data-kind="rows"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All rows
-                      </button>
-                    </div>
-                    <div class="segmented" role="group" aria-label="Columns">
-                      <button
-                        class="seg active"
-                        data-scope="unpaid"
-                        data-kind="cols"
-                        data-value="basic"
-                        aria-pressed="true"
-                      >
-                        Basic
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="unpaid"
-                        data-kind="cols"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All columns
-                      </button>
-                    </div>
-                  </div>
-
-                  <div id="dups-unpaid" class="results"></div>
-                  <div id="pager-unpaid" class="pager"></div>
-
-                  <div class="row" style="justify-content:flex-end">
-                    <button id="export-unpaid" class="secondary small">
-                      Download CSV
-                    </button>
-                  </div>
-                </div>
-              </details>
-
-              <!-- PAID -->
-              <details class="acc" id="acc-paid">
-                <summary>
-                  <span>Duplicates: Paid</span>
-                  <span class="badge" id="count-paid">0</span>
-                </summary>
-                <div class="acc-body">
-                  <div class="result-controls">
-                    <input
-                      id="filter-paid"
-                      class="search"
-                      type="search"
-                      placeholder="Filter vendor/building…"
-                    />
-                    <div class="segmented" role="group" aria-label="Rows">
-                      <button
-                        class="seg active"
-                        data-scope="paid"
-                        data-kind="rows"
-                        data-value="compact"
-                        aria-pressed="true"
-                      >
-                        Compact
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="paid"
-                        data-kind="rows"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All rows
-                      </button>
-                    </div>
-                    <div class="segmented" role="group" aria-label="Columns">
-                      <button
-                        class="seg active"
-                        data-scope="paid"
-                        data-kind="cols"
-                        data-value="basic"
-                        aria-pressed="true"
-                      >
-                        Basic
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="paid"
-                        data-kind="cols"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All columns
-                      </button>
-                    </div>
-                  </div>
-
-                  <div id="dups-paid" class="results"></div>
-                  <div id="pager-paid" class="pager"></div>
-
-                  <div class="row" style="justify-content:flex-end">
-                    <button id="export-paid" class="secondary small">
-                      Download CSV
-                    </button>
-                  </div>
-                </div>
-              </details>
-
-              <!-- CROSS -->
-              <details class="acc" id="acc-cross">
-                <summary>
-                  <span>Paid vs Unpaid</span>
-                  <span class="badge" id="count-cross">0</span>
-                </summary>
-                <div class="acc-body">
-                  <div class="result-controls">
-                    <input
-                      id="filter-cross"
-                      class="search"
-                      type="search"
-                      placeholder="Filter vendor/building…"
-                    />
-                    <div class="segmented" role="group" aria-label="Rows">
-                      <button
-                        class="seg active"
-                        data-scope="cross"
-                        data-kind="rows"
-                        data-value="compact"
-                        aria-pressed="true"
-                      >
-                        Compact
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="cross"
-                        data-kind="rows"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All rows
-                      </button>
-                    </div>
-                    <div class="segmented" role="group" aria-label="Columns">
-                      <button
-                        class="seg active"
-                        data-scope="cross"
-                        data-kind="cols"
-                        data-value="basic"
-                        aria-pressed="true"
-                      >
-                        Basic
-                      </button>
-                      <button
-                        class="seg"
-                        data-scope="cross"
-                        data-kind="cols"
-                        data-value="all"
-                        aria-pressed="false"
-                      >
-                        All columns
-                      </button>
-                    </div>
-                  </div>
-
-                  <div id="cross" class="results"></div>
-                  <div id="pager-cross" class="pager"></div>
-
-                  <div class="row" style="justify-content:flex-end">
-                    <button id="export-cross" class="secondary small">
-                      Download CSV
-                    </button>
-                  </div>
-                </div>
-              </details>
-            </section>
-          </section>
-        </section>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <div class="container">
-        <span class="muted small"
-          >© <span id="year"></span> • Duplicates Auditor</span
-        >
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="run-single" class="btn primary">Run</button>
+          </div>
+        </div>
+        <div class="muted" id="status-single"></div>
       </div>
+
+      <div id="out-single"></div>
+
+      <div class="card">
+        <div class="card-title">Two files — find overlaps (same Txn# and same date)</div>
+        <div class="row">
+          <div class="field" style="min-width:240px;flex:1;">
+            <div class="dz" id="dz-paid" tabindex="0" aria-live="polite">File A</div>
+            <input type="file" id="file-paid" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls" class="hidden">
+          </div>
+          <div class="field" style="min-width:240px;flex:1;">
+            <div class="dz" id="dz-unpaid" tabindex="0" aria-live="polite">File B</div>
+            <input type="file" id="file-unpaid" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls" class="hidden">
+          </div>
+          <div class="field">
+            <label>Date tolerance (days)</label>
+            <input id="days-cross" class="input" type="number" min="0" value="0">
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="run-cross" class="btn">Check overlap</button>
+          </div>
+        </div>
+        <div class="muted" id="status-cross"></div>
+      </div>
+
+      <div id="out-cross"></div>
+    </section>
+
+    <!-- Transaction Compare -->
+    <section id="panel-compare" class="hidden">
+      <div class="row" style="justify-content:space-between;">
+        <h2>Transaction History Compare</h2>
+        <button id="back-home-2" class="btn">← Back</button>
+      </div>
+
+      <div id="sign-flip-banner" class="banner hidden"></div>
+
+      <div class="card">
+        <div class="card-title">Upload & Options</div>
+        <div class="row">
+          <div class="field" style="min-width:260px;flex:1;">
+            <div id="dz-a" class="dz" tabindex="0" aria-live="polite">File A (CSV/XLSX/XLS)</div>
+            <input id="file-a" type="file" class="hidden" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"/>
+            <div class="muted" id="map-a"></div>
+          </div>
+          <div class="field" style="min-width:260px;flex:1;">
+            <div id="dz-b" class="dz" tabindex="0" aria-live="polite">File B (CSV/XLSX/XLS)</div>
+            <input id="file-b" type="file" class="hidden" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"/>
+            <div class="muted" id="map-b"></div>
+          </div>
+          <div class="field">
+            <label>Date tolerance (days)</label>
+            <input id="compare-days" class="input" type="number" min="0" value="0">
+          </div>
+          <div class="field" style="min-width:220px;">
+            <label>Use Description in match</label>
+            <label class="row" style="gap:6px;"><input id="use-desc" type="checkbox" checked> <span>Require Description match</span></label>
+            <label class="row" style="gap:6px;"><input id="fuzzy-desc" type="checkbox"> <span>Fuzzy Description (experimental)</span></label>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="run-compare" class="btn primary">Run</button>
+          </div>
+        </div>
+        <div class="muted" id="compare-readiness"></div>
+      </div>
+
+      <!-- Collapsible A ▸ B -->
+      <details id="sec-a-not-b" open class="collapsible">
+        <summary>
+          <span class="badge">A▸B</span>
+          <span class="muted" id="total-a-not-b">Total: 0</span>
+        </summary>
+        <div class="controls row">
+          <button id="export-a-not-b" class="btn btn-outline">Export A▸B</button>
+          <input id="filter-a-not-b" class="input" placeholder="Filter rows in A not in B">
+          <div class="pager">
+            <button class="btn" id="a-prev">‹ Prev</button>
+            <span id="a-pageinfo" class="muted">Page 1</span>
+            <button class="btn" id="a-next">Next ›</button>
+            <select id="a-pagesize" class="input">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+        <div id="grid-a-not-b" class="card" style="margin-top:8px;"></div>
+      </details>
+
+      <!-- Collapsible B ▸ A -->
+      <details id="sec-b-not-a" class="collapsible">
+        <summary>
+          <span class="badge">B▸A</span>
+          <span class="muted" id="total-b-not-a">Total: 0</span>
+        </summary>
+        <div class="controls row">
+          <button id="export-b-not-a" class="btn btn-outline">Export B▸A</button>
+          <input id="filter-b-not-a" class="input" placeholder="Filter rows in B not in A">
+          <div class="pager">
+            <button class="btn" id="b-prev">‹ Prev</button>
+            <span id="b-pageinfo" class="muted">Page 1</span>
+            <button class="btn" id="b-next">Next ›</button>
+            <select id="b-pagesize" class="input">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+        <div id="grid-b-not-a" class="card" style="margin-top:8px;"></div>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    © <span id="year"></span>
+  </footer>
+
+  <!-- Column chooser modal -->
+  <dialog id="column-modal">
+    <header><strong id="modal-title">Choose column</strong></header>
+    <div class="content">
+      <div class="muted">Which column should be used for <span id="modal-which"></span>?</div>
+      <select id="modal-select" style="width:100%; margin-top:10px;"></select>
+    </div>
+    <footer>
+      <button id="modal-cancel" class="btn">Cancel</button>
+      <button id="modal-ok" class="btn primary">Use this column</button>
     </footer>
+  </dialog>
 
-    <script src="assets/app.js"></script>
-  </body>
+  <script src="app.js"></script>
+</body>
 </html>
