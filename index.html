@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en" data-theme="light">
 <head>
@@ -10,6 +9,7 @@
   <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
   <header>
@@ -67,6 +67,10 @@
             <label>&nbsp;</label>
             <button id="run-single" class="btn primary">Run</button>
           </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="export-dups" class="btn btn-outline" disabled title="After running, export: highlight rows if Excel; CSV-only if CSV">Export Duplicates</button>
+          </div>
         </div>
         <div class="muted" id="status-single"></div>
       </div>
@@ -91,6 +95,10 @@
           <div class="field">
             <label>&nbsp;</label>
             <button id="run-cross" class="btn">Check overlap</button>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="export-overlap" class="btn btn-outline" disabled title="If A is Excel: highlight overlaps in A; else CSV with overlap rows">Export Overlap A∩B</button>
           </div>
         </div>
         <div class="muted" id="status-cross"></div>
@@ -127,7 +135,7 @@
           </div>
           <div class="field" style="min-width:220px;">
             <label>Use Description in match</label>
-            <label class="row" style="gap:6px;"><input id="use-desc" type="checkbox" checked> <span>Require Description match</span></label>
+            <label class="row" style="gap:6px;"><input id="use-desc" type="checkbox"> <span>Require Description match</span></label>
             <label class="row" style="gap:6px;"><input id="fuzzy-desc" type="checkbox"> <span>Fuzzy Description (experimental)</span></label>
           </div>
           <div class="field">
@@ -141,7 +149,7 @@
       <!-- Collapsible A ▸ B -->
       <details id="sec-a-not-b" open class="collapsible">
         <summary>
-          <span class="badge">A▸B</span>
+          <span class="badge" id="badge-a-to-b">A▸B</span>
           <span class="muted" id="total-a-not-b">Total: 0</span>
         </summary>
         <div class="controls row">
@@ -165,7 +173,7 @@
       <!-- Collapsible B ▸ A -->
       <details id="sec-b-not-a" class="collapsible">
         <summary>
-          <span class="badge">B▸A</span>
+          <span class="badge" id="badge-b-to-a">B▸A</span>
           <span class="muted" id="total-b-not-a">Total: 0</span>
         </summary>
         <div class="controls row">

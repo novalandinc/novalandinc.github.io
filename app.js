@@ -1,6 +1,5 @@
-
 /* =========================================================
-   app.js — Date prompt when multiple candidates + optional/fuzzy Description
+   app.js — Smart exports; dynamic labels; bolded modal targets; Desc off by default
    ========================================================= */
 
 (function(){
@@ -76,7 +75,7 @@
   const normalizeDescTokens = s => normalizeDesc(s).split(' ').filter(Boolean).map(tok=>{
     if (/\d/.test(tok)){
       const digits = tok.replace(/\D+/g,'');
-      const last = digits.slice(-6); // keep last up to 6
+      const last = digits.slice(-6);
       return last || tok;
     }
     return tok;
@@ -95,7 +94,6 @@
     const union = new Set([...ta, ...tb]).size || 1;
     const jacc = inter / union;
     if (jacc >= 0.66) return true;
-    // also compare concatenated digits (last up to 6) equality
     const da = ta.filter(t=>/\d/.test(t)).join('');
     const db = tb.filter(t=>/\d/.test(t)).join('');
     if (da && db && da.slice(-6) === db.slice(-6)) return true;
@@ -139,17 +137,19 @@
   }
 
   /* ---------- modal helpers ---------- */
-  function chooseColumnModal(headers, whichLabel){
+  function chooseColumnModal(headers, whichLabelHTML){
     return new Promise((resolve) => {
       const dlg = $('#column-modal');
+      const contentLabel = whichLabelHTML || '';
       if (!dlg){
-        const choice = window.prompt(`Choose a column for ${whichLabel}:\n\n- ${headers.join('\n- ')}`);
+        const choice = window.prompt(`Choose a column for ${contentLabel.replace(/<[^>]*>/g,'')}:\n\n- ${headers.join('\n- ')}`);
         if (!choice) return resolve(null);
         const match = headers.find(h => h.toLowerCase() === choice.toLowerCase());
         return resolve(match || null);
       }
       $('#modal-title').textContent = 'Choose column';
-      $('#modal-which').textContent = whichLabel;
+      // allow bold for the exact target (Card, Date, etc.)
+      $('#modal-which').innerHTML = contentLabel;
       const sel = $('#modal-select');
       sel.innerHTML = headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
       dlg.returnValue = '';
@@ -206,9 +206,67 @@
     return { rows: json, headers };
   }
 
+  function isExcelFile(file){
+    const n = (file?.name || '').toLowerCase();
+    return /\.xlsx?$/.test(n);
+  }
+  function stripExt(name='file.xlsx'){
+    const i = name.lastIndexOf('.'); return i>0 ? name.slice(0,i) : name;
+  }
+  const stem = (name='File') => {
+    const base = stripExt(name);
+    return base.length > 20 ? base.slice(0,20) + '…' : base;
+  };
+
   function downloadCSV(filename, rows){
     const csv = rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 100);
+  }
+
+  // ExcelJS-based XLSX with highlighted rows
+  async function exportHighlightedXlsx(filename, headers, rows, highlightIdxSet, sheetName='Data'){
+    if (!window.ExcelJS){ alert('ExcelJS library not loaded.'); return; }
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(sheetName);
+    // Header
+    ws.addRow(headers);
+    const header = ws.getRow(1);
+    header.font = { bold: true };
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // Data rows
+    rows.forEach((r, i) => {
+      const vals = headers.map(h => r[h]);
+      const row = ws.addRow(vals);
+      if (highlightIdxSet && highlightIdxSet.has(i)){
+        row.eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } };
+        });
+      }
+    });
+
+    // Auto filter + widths
+    const colCount = headers.length;
+    if (colCount){
+      const lastColLetter = (n => {
+        let s=''; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s;
+      })(colCount);
+      ws.autoFilter = { from: 'A1', to: `${lastColLetter}1` };
+      for (let c=1;c<=colCount;c++){
+        let w = headers[c-1] ? String(headers[c-1]).length : 10;
+        for (let r=2;r<=rows.length+1;r++){
+          const v = ws.getRow(r).getCell(c).value;
+          const l = v==null ? 0 : String(v).length;
+          if (l+2 > w) w = Math.min(l+2, 60);
+        }
+        ws.getColumn(c).width = Math.max(10, Math.min(60, w));
+      }
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
     document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 100);
   }
@@ -264,8 +322,38 @@
     on($('#back-home-2'),'click',()=>showPanel('panel-home'));
   }
 
+  /* ---------- dynamic A/B naming ---------- */
+  const nameState = {
+    aStem: 'A',
+    bStem: 'B',
+    paidStem: 'A',
+    unpaidStem: 'B'
+  };
+  function updateABLabels(aStem, bStem){
+    nameState.aStem = aStem || 'A';
+    nameState.bStem = bStem || 'B';
+    // badges
+    const ba = $('#badge-a-to-b'); if (ba) ba.textContent = `${nameState.aStem}▸${nameState.bStem}`;
+    const bb = $('#badge-b-to-a'); if (bb) bb.textContent = `${nameState.bStem}▸${nameState.aStem}`;
+    // export buttons
+    const exA = $('#export-a-not-b'); if (exA) exA.textContent = `Export ${nameState.aStem}▸${nameState.bStem}`;
+    const exB = $('#export-b-not-a'); if (exB) exB.textContent = `Export ${nameState.bStem}▸${nameState.aStem}`;
+    // filter placeholders
+    const fa = $('#filter-a-not-b'); if (fa) fa.placeholder = `Filter rows in ${nameState.aStem} not in ${nameState.bStem}`;
+    const fb = $('#filter-b-not-a'); if (fb) fb.placeholder = `Filter rows in ${nameState.bStem} not in ${nameState.aStem}`;
+    // dropzone text (compare)
+    const dza = $('#dz-a'); if (dza && dza.classList.contains('success')===false) dza.textContent = `File ${nameState.aStem} (CSV/XLSX/XLS)`;
+    const dzb = $('#dz-b'); if (dzb && dzb.classList.contains('success')===false) dzb.textContent = `File ${nameState.bStem} (CSV/XLSX/XLS)`;
+  }
+  function updateOverlapLabel(paidStem, unpaidStem){
+    nameState.paidStem = paidStem || 'A';
+    nameState.unpaidStem = unpaidStem || 'B';
+    const ex = $('#export-overlap'); if (ex) ex.textContent = `Export Overlap ${nameState.paidStem}∩${nameState.unpaidStem}`;
+  }
+  const makeWhichLabel = (stemName, exact) => `${esc(stemName)}: <b>${esc(exact)}</b>`;
+
   /* =========================================================
-     LEGACY: Duplicates Auditor (kept)
+     Duplicates Auditor (+ export)
      ========================================================= */
   function renderTable(container, headers, rows, title){
     if (!container) return;
@@ -282,6 +370,8 @@
       </div>
     </div>`;
   }
+
+  const singleState = { file: null, rows: [], headers: [], dupIdxs: new Set() };
   async function runSingle(){
     const status = $('#status-single');
     const file = $('#file-single')?.files?.[0];
@@ -292,25 +382,44 @@
     const rows = parsed.rows; const headers = parsed.headers;
     let dateCol = detectByHeader(headers, DATE_HEADER_CANDS);
     let txnCol  = detectByHeader(headers, ['transaction number','transaction id','trans #','txn #','reference','ref','id','trace number','check #','check number']);
-    // always check for multiple plausible date columns
     const dateCands = [...new Set([...(detectDateColumnsByData(rows, headers)), ...headers.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
-    if (dateCands.length >= 2) dateCol = await chooseColumnModal(dateCands, 'date (Single file)');
-    if (!dateCol)  dateCol = await chooseColumnModal(headers, 'date (Single file)');
-    if (!txnCol)   txnCol  = await chooseColumnModal(headers, 'transaction # (Single file)');
+    if (dateCands.length >= 2) dateCol = await chooseColumnModal(dateCands, makeWhichLabel(stem(file.name),'Date'));
+    if (!dateCol)  dateCol = await chooseColumnModal(headers, makeWhichLabel(stem(file.name),'Date'));
+    if (!txnCol)   txnCol  = await chooseColumnModal(headers, makeWhichLabel(stem(file.name),'Transaction #'));
     if (!dateCol || !txnCol){ if(status) status.textContent='Required columns not set.'; return; }
     const seen = new Map();
     const dups = [];
-    rows.forEach((r)=>{
+    const dupIdxs = new Set();
+    rows.forEach((r, i)=>{
       const k = String(r[txnCol]??'').trim();
       const d = r[dateCol];
       if (!seen.has(k)) seen.set(k, []);
       const arr = seen.get(k);
       const hit = arr.find(x => withinDays(x.d, d, days));
-      if (hit){ dups.push(r); } else { arr.push({d}); }
+      if (hit){ dups.push(r); dupIdxs.add(i); } else { arr.push({d, idx:i}); }
     });
+    singleState.file = file; singleState.rows = rows; singleState.headers = headers; singleState.dupIdxs = dupIdxs;
+
     if (status) status.textContent = `Found ${dups.length} potential duplicates.`;
     renderTable($('#out-single'), headers, dups, 'Duplicate rows');
+
+    const btn = $('#export-dups');
+    if (btn){
+      btn.disabled = dups.length === 0;
+      btn.onclick = async () => {
+        if (isExcelFile(singleState.file)){
+          const fn = `${stripExt(singleState.file.name)}__DUPLICATE_ROWS_HIGHLIGHTED.xlsx`;
+          await exportHighlightedXlsx(fn, headers, rows, dupIdxs, 'Data');
+        } else {
+          if (!dups.length) return;
+          const csvRows = [headers, ...rows.filter((_,i)=>dupIdxs.has(i)).map(r=>headers.map(h=>r[h]))];
+          downloadCSV(`${stripExt(singleState.file.name)}__duplicates_only.csv`, csvRows);
+        }
+      };
+    }
   }
+
+  const crossState = { fileA: null, rowsA: [], headersA: [], overlapIdxs: new Set(), paidName:'', unpaidName:'' };
   async function runCross(){
     const status = $('#status-cross');
     const fa = $('#file-paid')?.files?.[0];
@@ -318,6 +427,9 @@
     const days = Math.max(0, +($('#days-cross')?.value||0));
     if (!fa || !fb){ if(status) status.textContent='Choose both files.'; return; }
     if (status) status.textContent='Parsing…';
+
+    updateOverlapLabel(stem(fa.name), stem(fb.name));
+
     const [pa, pb] = await Promise.all([parseFile(fa), parseFile(fb)]);
     const rowsA = pa.rows; const rowsB = pb.rows;
     const headersA = pa.headers; const headersB = pb.headers;
@@ -327,13 +439,14 @@
     let txnB  = detectByHeader(headersB, ['transaction number','transaction id','trans #','txn #','reference','ref','id','trace number','check #','check number']);
     const candA = [...new Set([...(detectDateColumnsByData(rowsA, headersA)), ...headersA.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
     const candB = [...new Set([...(detectDateColumnsByData(rowsB, headersB)), ...headersB.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
-    if (candA.length >= 2) dateA = await chooseColumnModal(candA, 'A date');
-    if (candB.length >= 2) dateB = await chooseColumnModal(candB, 'B date');
-    if (!dateA) dateA = await chooseColumnModal(headersA, 'A date');
-    if (!dateB) dateB = await chooseColumnModal(headersB, 'B date');
-    if (!txnA)  txnA  = await chooseColumnModal(headersA, 'A transaction #');
-    if (!txnB)  txnB  = await chooseColumnModal(headersB, 'B transaction #');
+    if (candA.length >= 2) dateA = await chooseColumnModal(candA, makeWhichLabel(stem(fa.name),'Date'));
+    if (candB.length >= 2) dateB = await chooseColumnModal(candB, makeWhichLabel(stem(fb.name),'Date'));
+    if (!dateA) dateA = await chooseColumnModal(headersA, makeWhichLabel(stem(fa.name),'Date'));
+    if (!dateB) dateB = await chooseColumnModal(headersB, makeWhichLabel(stem(fb.name),'Date'));
+    if (!txnA)  txnA  = await chooseColumnModal(headersA, makeWhichLabel(stem(fa.name),'Transaction #'));
+    if (!txnB)  txnB  = await chooseColumnModal(headersB, makeWhichLabel(stem(fb.name),'Transaction #'));
     if (!dateA || !dateB || !txnA || !txnB){ if(status) status.textContent='Required columns not set.'; return; }
+
     const byTxnB = new Map();
     rowsB.forEach(r=>{
       const k = String(r[txnB]??'').trim();
@@ -341,21 +454,40 @@
       byTxnB.get(k).push(r);
     });
     const overlap = [];
-    rowsA.forEach(r=>{
+    const overlapIdxs = new Set();
+    rowsA.forEach((r, i)=>{
       const k = String(r[txnA]??'').trim();
       const cands = byTxnB.get(k)||[];
-      if (cands.find(b=>withinDays(r[dateA], b[dateB], days))) overlap.push(r);
+      if (cands.find(b=>withinDays(r[dateA], b[dateB], days))){ overlap.push(r); overlapIdxs.add(i); }
     });
+    crossState.fileA = fa; crossState.rowsA = rowsA; crossState.headersA = headersA; crossState.overlapIdxs = overlapIdxs;
+    crossState.paidName = fa.name; crossState.unpaidName = fb.name;
+
     if (status) status.textContent = `Found ${overlap.length} overlaps.`;
-    renderTable($('#out-cross'), headersA, overlap, 'Rows in A that overlap B');
+    renderTable($('#out-cross'), headersA, overlap, `Rows in ${stem(fa.name)} that overlap ${stem(fb.name)}`);
+
+    const btn = $('#export-overlap');
+    if (btn){
+      btn.disabled = overlap.length === 0;
+      btn.onclick = async () => {
+        if (isExcelFile(crossState.fileA)){
+          const fn = `${stripExt(crossState.fileA.name)}__OVERLAP_ROWS_HIGHLIGHTED.xlsx`;
+          await exportHighlightedXlsx(fn, headersA, rowsA, overlapIdxs, 'Data');
+        } else {
+          if (!overlap.length) return;
+          const csvRows = [headersA, ...rowsA.filter((_,i)=>overlapIdxs.has(i)).map(r=>headersA.map(h=>r[h]))];
+          downloadCSV(`${stripExt(crossState.fileA.name)}__overlap_only.csv`, csvRows);
+        }
+      };
+    }
   }
 
   /* =========================================================
-     Compare with optional/fuzzy Description + strict 1:1 and abs(amount)
+     Compare (+ dynamic names + exports)
      ========================================================= */
   const compareState = {
-    onlyA: [], headersA: [], fileAName: '',
-    onlyB: [], headersB: [], fileBName: '',
+    onlyA: [], headersA: [], fileAName: '', rowsA: [], fileA: null,
+    onlyB: [], headersB: [], fileBName: '', rowsB: [], fileB: null,
     a: { page: 1, size: 25 },
     b: { page: 1, size: 25 }
   };
@@ -417,31 +549,36 @@
     const fuzzyDesc = $('#fuzzy-desc')?.checked;
     if (!fileA || !fileB){ if(status) status.textContent='Please select File A and File B.'; return; }
     if (status) status.textContent='Parsing…';
+
+    const aStem = stem(fileA.name);
+    const bStem = stem(fileB.name);
+    updateABLabels(aStem, bStem);
+
     const [pa, pb] = await Promise.all([parseFile(fileA), parseFile(fileB)]);
     const rowsA = pa.rows; const rowsB = pb.rows;
     const headersA = pa.headers; const headersB = pb.headers;
     if (!rowsA.length || !rowsB.length){ if(status) status.textContent='One or both files are empty.'; return; }
 
-    // Detect columns and force prompt if multiple date candidates
+    // Detect columns and force prompt if multiple date candidates (with bolded exact field and name stems)
     let dateA = detectByHeader(headersA, DATE_HEADER_CANDS);
     let dateB = detectByHeader(headersB, DATE_HEADER_CANDS);
     const dateCandsA = [...new Set([...(detectDateColumnsByData(rowsA, headersA)), ...headersA.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
     const dateCandsB = [...new Set([...(detectDateColumnsByData(rowsB, headersB)), ...headersB.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
-    if (dateCandsA.length >= 2) dateA = await chooseColumnModal(dateCandsA, 'A date');
-    if (dateCandsB.length >= 2) dateB = await chooseColumnModal(dateCandsB, 'B date');
-    if (!dateA) dateA = await chooseColumnModal(headersA, 'A date');
-    if (!dateB) dateB = await chooseColumnModal(headersB, 'B date');
+    if (dateCandsA.length >= 2) dateA = await chooseColumnModal(dateCandsA, makeWhichLabel(aStem,'Date'));
+    if (dateCandsB.length >= 2) dateB = await chooseColumnModal(dateCandsB, makeWhichLabel(bStem,'Date'));
+    if (!dateA) dateA = await chooseColumnModal(headersA, makeWhichLabel(aStem,'Date'));
+    if (!dateB) dateB = await chooseColumnModal(headersB, makeWhichLabel(bStem,'Date'));
 
     let amountA = detectByHeader(headersA, AMOUNT_HEADER_CANDS);
     let amountB = detectByHeader(headersB, AMOUNT_HEADER_CANDS);
-    if (!amountA) amountA = await chooseColumnModal(headersA, 'A amount');
-    if (!amountB) amountB = await chooseColumnModal(headersB, 'B amount');
+    if (!amountA) amountA = await chooseColumnModal(headersA, makeWhichLabel(aStem,'Amount'));
+    if (!amountB) amountB = await chooseColumnModal(headersB, makeWhichLabel(bStem,'Amount'));
 
-    let descA = useDesc ? (detectByHeader(headersA, DESC_HEADER_CANDS) || await chooseColumnModal(headersA, 'A description')) : null;
-    let descB = useDesc ? (detectByHeader(headersB, DESC_HEADER_CANDS) || await chooseColumnModal(headersB, 'B description')) : null;
+    let descA = useDesc ? (detectByHeader(headersA, DESC_HEADER_CANDS) || await chooseColumnModal(headersA, makeWhichLabel(aStem,'Description'))) : null;
+    let descB = useDesc ? (detectByHeader(headersB, DESC_HEADER_CANDS) || await chooseColumnModal(headersB, makeWhichLabel(bStem,'Description'))) : null;
 
-    let cardA = detectByHeader(headersA, CARD_HEADER_CANDS) || await chooseColumnModal(headersA, 'A card');
-    let cardB = detectByHeader(headersB, CARD_HEADER_CANDS) || await chooseColumnModal(headersB, 'B card');
+    let cardA = detectByHeader(headersA, CARD_HEADER_CANDS) || await chooseColumnModal(headersA, makeWhichLabel(aStem,'Card'));
+    let cardB = detectByHeader(headersB, CARD_HEADER_CANDS) || await chooseColumnModal(headersB, makeWhichLabel(bStem,'Card'));
 
     if (!dateA || !dateB || !amountA || !amountB || !cardA || !cardB){
       if (status) status.textContent = 'Missing required columns (Date, Amount, Card).';
@@ -471,7 +608,7 @@
     });
     const banner = $('#sign-flip-banner');
     if (evaluated>0 && (opposite/evaluated) >= 0.7){
-      if (banner){ banner.classList.remove('hidden'); banner.textContent='Most matched amounts have opposite signs. Comparison uses |amount| for matching.'; }
+      if (banner){ banner.classList.remove('hidden'); banner.textContent=`Most matched amounts have opposite signs. Comparison uses |amount| for matching.`; }
     } else if (banner){ banner.classList.add('hidden'); banner.textContent=''; }
 
     // Build B index key: Card-last4 + (optional Desc) + |Amount| cents
@@ -522,21 +659,45 @@
     compareState.headersB = headersB;
     compareState.fileAName = fileA.name;
     compareState.fileBName = fileB.name;
+    compareState.rowsA = rowsA;
+    compareState.rowsB = rowsB;
+    compareState.fileA = fileA;
+    compareState.fileB = fileB;
     compareState.a.page = 1; compareState.b.page = 1;
 
-    // exports + filters
-    on($('#export-a-not-b'),'click',()=>{
-      if(!onlyA.length) return;
-      const headers = Object.keys(onlyA[0].r||{});
-      const csvRows = [headers, ...onlyA.map(({r})=>headers.map(h=>r[h]))];
-      downloadCSV(`rows_in_${fileA.name}_not_in_${fileB.name}.csv`, csvRows);
-    });
-    on($('#export-b-not-a'),'click',()=>{
-      if(!onlyB.length) return;
-      const headers = Object.keys(onlyB[0].r||{});
-      const csvRows = [headers, ...onlyB.map(({r})=>headers.map(h=>r[h]))];
-      downloadCSV(`rows_in_${fileB.name}_not_in_${fileA.name}.csv`, csvRows);
-    });
+    // exports
+    const idxAset = new Set(onlyA.map(x=>x.idx));
+    const idxBset = new Set(onlyB.map(x=>x.idx));
+
+    const btnA = $('#export-a-not-b');
+    if (btnA){
+      btnA.onclick = async () => {
+        if (!onlyA.length) return;
+        if (isExcelFile(compareState.fileA)){
+          const fn = `${stripExt(compareState.fileAName)}__MISMATCH_ROWS_HIGHLIGHTED.xlsx`;
+          await exportHighlightedXlsx(fn, headersA, rowsA, idxAset, 'Data');
+        } else {
+          const headers = Object.keys(onlyA[0].r||{});
+          const csvRows = [headers, ...onlyA.map(({r})=>headers.map(h=>r[h]))];
+          downloadCSV(`rows_in_${compareState.fileAName}_not_in_${compareState.fileBName}.csv`, csvRows);
+        }
+      };
+    }
+    const btnB = $('#export-b-not-a');
+    if (btnB){
+      btnB.onclick = async () => {
+        if (!onlyB.length) return;
+        if (isExcelFile(compareState.fileB)){
+          const fn = `${stripExt(compareState.fileBName)}__MISMATCH_ROWS_HIGHLIGHTED.xlsx`;
+          await exportHighlightedXlsx(fn, headersB, rowsB, idxBset, 'Data');
+        } else {
+          const headers = Object.keys(onlyB[0].r||{});
+          const csvRows = [headers, ...onlyB.map(({r})=>headers.map(h=>r[h]))];
+          downloadCSV(`rows_in_${compareState.fileBName}_not_in_${compareState.fileAName}.csv`, csvRows);
+        }
+      };
+    }
+
     wireFilter($('#filter-a-not-b'), 'a');
     wireFilter($('#filter-b-not-a'), 'b');
 
@@ -548,7 +709,7 @@
     syncPagination('a');
     syncPagination('b');
 
-    if (status) status.textContent = `Done. ${onlyA.length} A→B misses; ${onlyB.length} B→A misses.`;
+    if (status) status.textContent = `Done. ${onlyA.length} ${aStem}→${bStem} misses; ${onlyB.length} ${bStem}→${aStem} misses.`;
   }
 
   /* ---------- boot ---------- */
@@ -558,8 +719,10 @@
     on($('#run-single'),'click',()=>{ runSingle().catch(e=>{$('#status-single').textContent='Error: '+e.message;}); });
     on($('#run-cross'),'click',()=>{ runCross().catch(e=>{$('#status-cross').textContent='Error: '+e.message;}); });
     on($('#run-compare'),'click',()=>{ runCompare().catch(e=>{$('#compare-readiness').textContent='Error: '+e.message;}); });
-    on($('#file-a'),'change',e=>{ const f=e.target.files?.[0]; if(f){ $('#compare-readiness').textContent = `A: ${f.name}`; } });
-    on($('#file-b'),'change',e=>{ const f=e.target.files?.[0]; if(f){ const t=$('#compare-readiness'); t.textContent = (t.textContent? t.textContent+' • ' : '') + `B: ${f.name}`; } });
+    on($('#file-a'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateABLabels(stem(f.name), nameState.bStem); $('#compare-readiness').textContent = `A: ${f.name}`; } });
+    on($('#file-b'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateABLabels(nameState.aStem, stem(f.name)); const t=$('#compare-readiness'); t.textContent = (t.textContent? t.textContent+' • ' : '') + `B: ${f.name}`; } });
+    on($('#file-paid'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateOverlapLabel(stem(f.name), nameState.unpaidStem); } });
+    on($('#file-unpaid'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateOverlapLabel(nameState.paidStem, stem(f.name)); } });
     const yearEl=$('#year'); if(yearEl) yearEl.textContent=new Date().getFullYear();
     on($('#a-prev'),'click',()=>{ compareState.a.page--; syncPagination('a'); });
     on($('#a-next'),'click',()=>{ compareState.a.page++; syncPagination('a'); });
