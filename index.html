@@ -1,218 +1,360 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Internal Tools Database</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="data:,">
-  <!-- Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-</head>
-<body>
-  <header>
-    <div class="brand">Internal Tools</div>
-    <div class="row">
-      <button id="nav-duplicates" class="btn">Duplicates Auditor</button>
-      <button id="nav-compare" class="btn">Transaction History Compare</button>
-    </div>
-  </header>
-
-  <main class="container">
-    <!-- Home -->
-    <section id="panel-home">
-      <h2>Choose a tool</h2>
-      <div class="grid cards">
-        <div id="nav-duplicates-card" class="card tile" tabindex="0" role="button" aria-label="Open Duplicates Auditor">
-          <img alt="" src="https://img.icons8.com/fluency/48/compass.png" width="36" height="36"/>
-          <div>
-            <div class="card-title">Duplicates Auditor</div>
-            <div class="muted">Single file • Two files (legacy-like)</div>
-            <div class="muted small">CSV or Excel (.xlsx/.xls)</div>
-          </div>
-        </div>
-
-        <div id="nav-compare-card" class="card tile" tabindex="0" role="button" aria-label="Open Transaction History Compare">
-          <img alt="" src="https://img.icons8.com/fluency/48/compare.png" width="36" height="36"/>
-          <div>
-            <div class="card-title">Transaction History Compare</div>
-            <div class="muted">Match by Card + (optional) Description + Date tolerance + |Amount|</div>
-            <div class="muted small">CSV or Excel (.xlsx/.xls)</div>
-          </div>
-        </div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Internal Tools Database</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="data:," />
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">Internal Tools</div>
+      <div class="row">
+        <button id="nav-duplicates" class="btn">Duplicates Auditor</button>
+        <button id="nav-compare" class="btn">
+          Transaction History Compare
+        </button>
       </div>
-    </section>
+    </header>
 
-    <!-- Duplicates Auditor -->
-    <section id="panel-duplicates" class="hidden">
-      <div class="row" style="justify-content:space-between;">
-        <h2>Duplicates Auditor</h2>
-        <button id="back-home-1" class="btn">← Back</button>
-      </div>
+    <main class="container">
+      <!-- Home -->
+      <section id="panel-home">
+        <h2>Choose a tool</h2>
+        <div class="grid cards">
+          <div
+            id="nav-duplicates-card"
+            class="card tile"
+            tabindex="0"
+            role="button"
+            aria-label="Open Duplicates Auditor"
+          >
+            <img
+              alt=""
+              src="https://img.icons8.com/fluency/48/compass.png"
+              width="36"
+              height="36"
+            />
+            <div>
+              <div class="card-title">Duplicates Auditor</div>
+              <div class="muted">Single file • Two files (legacy-like)</div>
+              <div class="muted small">CSV or Excel (.xlsx/.xls)</div>
+            </div>
+          </div>
 
-      <div class="card">
-        <div class="card-title">Single file — find duplicate Txn# on same date</div>
-        <div class="row">
-          <div class="field" style="min-width:260px;flex:1;">
-            <div class="dz" id="dz-single" tabindex="0" aria-live="polite">Click or drop a CSV/XLSX/XLS here</div>
-            <input type="file" id="file-single" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls" class="hidden">
-          </div>
-          <div class="field">
-            <label>Date tolerance (days)</label>
-            <input id="days-single" class="input" type="number" min="0" value="0">
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button id="run-single" class="btn primary">Run</button>
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button id="export-dups" class="btn btn-outline" disabled title="After running, export: highlight rows if Excel; CSV-only if CSV">Export Duplicates</button>
+          <div
+            id="nav-compare-card"
+            class="card tile"
+            tabindex="0"
+            role="button"
+            aria-label="Open Transaction History Compare"
+          >
+            <img
+              alt=""
+              src="https://img.icons8.com/fluency/48/compare.png"
+              width="36"
+              height="36"
+            />
+            <div>
+              <div class="card-title">Transaction History Compare</div>
+              <div class="muted">
+                Match by (optional) Card + (optional) Description + Date
+                tolerance + |Amount|
+              </div>
+              <div class="muted small">CSV or Excel (.xlsx/.xls)</div>
+            </div>
           </div>
         </div>
-        <div class="muted" id="status-single"></div>
-      </div>
+      </section>
 
-      <div id="out-single"></div>
-
-      <div class="card">
-        <div class="card-title">Two files — find overlaps (same Txn# and same date)</div>
-        <div class="row">
-          <div class="field" style="min-width:240px;flex:1;">
-            <div class="dz" id="dz-paid" tabindex="0" aria-live="polite">File A</div>
-            <input type="file" id="file-paid" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls" class="hidden">
-          </div>
-          <div class="field" style="min-width:240px;flex:1;">
-            <div class="dz" id="dz-unpaid" tabindex="0" aria-live="polite">File B</div>
-            <input type="file" id="file-unpaid" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls" class="hidden">
-          </div>
-          <div class="field">
-            <label>Date tolerance (days)</label>
-            <input id="days-cross" class="input" type="number" min="0" value="0">
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button id="run-cross" class="btn">Check overlap</button>
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button id="export-overlap" class="btn btn-outline" disabled title="If A is Excel: highlight overlaps in A; else CSV with overlap rows">Export Overlap A∩B</button>
-          </div>
+      <!-- Duplicates Auditor -->
+      <section id="panel-duplicates" class="hidden">
+        <div class="row" style="justify-content:space-between;">
+          <h2>Duplicates Auditor</h2>
+          <button id="back-home-1" class="btn">← Back</button>
         </div>
-        <div class="muted" id="status-cross"></div>
-      </div>
 
-      <div id="out-cross"></div>
-    </section>
-
-    <!-- Transaction Compare -->
-    <section id="panel-compare" class="hidden">
-      <div class="row" style="justify-content:space-between;">
-        <h2>Transaction History Compare</h2>
-        <button id="back-home-2" class="btn">← Back</button>
-      </div>
-
-      <div id="sign-flip-banner" class="banner hidden"></div>
-
-      <div class="card">
-        <div class="card-title">Upload & Options</div>
-        <div class="row">
-          <div class="field" style="min-width:260px;flex:1;">
-            <div id="dz-a" class="dz" tabindex="0" aria-live="polite">File A (CSV/XLSX/XLS)</div>
-            <input id="file-a" type="file" class="hidden" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"/>
-            <div class="muted" id="map-a"></div>
+        <div class="card">
+          <div class="card-title">
+            Single file — find duplicate Txn# on same date
           </div>
-          <div class="field" style="min-width:260px;flex:1;">
-            <div id="dz-b" class="dz" tabindex="0" aria-live="polite">File B (CSV/XLSX/XLS)</div>
-            <input id="file-b" type="file" class="hidden" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"/>
-            <div class="muted" id="map-b"></div>
+          <div class="row">
+            <div class="field" style="min-width:260px;flex:1;">
+              <div class="dz" id="dz-single" tabindex="0" aria-live="polite">
+                Click or drop a CSV/XLSX/XLS here
+              </div>
+              <input
+                type="file"
+                id="file-single"
+                accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"
+                class="hidden"
+              />
+            </div>
+            <div class="field">
+              <label>Date tolerance (days)</label>
+              <input
+                id="days-single"
+                class="input"
+                type="number"
+                min="0"
+                value="7"
+              />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="run-single" class="btn primary">Run</button>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button
+                id="export-dups"
+                class="btn btn-outline"
+                disabled
+                title="After running, export: highlight rows if Excel; CSV-only if CSV"
+              >
+                Export Duplicates
+              </button>
+            </div>
           </div>
-          <div class="field">
-            <label>Date tolerance (days)</label>
-            <input id="compare-days" class="input" type="number" min="0" value="0">
-          </div>
-          <div class="field" style="min-width:220px;">
-            <label>Use Description in match</label>
-            <label class="row" style="gap:6px;"><input id="use-desc" type="checkbox"> <span>Require Description match</span></label>
-            <label class="row" style="gap:6px;"><input id="fuzzy-desc" type="checkbox"> <span>Fuzzy Description (experimental)</span></label>
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button id="run-compare" class="btn primary">Run</button>
-          </div>
+          <div class="muted" id="status-single"></div>
         </div>
-        <div class="muted" id="compare-readiness"></div>
+
+        <div id="out-single"></div>
+
+        <div class="card">
+          <div class="card-title">
+            Two files — find overlaps (same Txn# and same date)
+          </div>
+          <div class="row">
+            <div class="field" style="min-width:240px;flex:1;">
+              <div class="dz" id="dz-paid" tabindex="0" aria-live="polite">
+                File A
+              </div>
+              <input
+                type="file"
+                id="file-paid"
+                accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"
+                class="hidden"
+              />
+            </div>
+            <div class="field" style="min-width:240px;flex:1;">
+              <div class="dz" id="dz-unpaid" tabindex="0" aria-live="polite">
+                File B
+              </div>
+              <input
+                type="file"
+                id="file-unpaid"
+                accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"
+                class="hidden"
+              />
+            </div>
+            <div class="field">
+              <label>Date tolerance (days)</label>
+              <input
+                id="days-cross"
+                class="input"
+                type="number"
+                min="0"
+                value="0"
+              />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="run-cross" class="btn">Check overlap</button>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button
+                id="export-overlap"
+                class="btn btn-outline"
+                disabled
+                title="If A is Excel: highlight overlaps in A; else CSV with overlap rows"
+              >
+                Export Overlap A∩B
+              </button>
+            </div>
+          </div>
+          <div class="muted" id="status-cross"></div>
+        </div>
+
+        <div id="out-cross"></div>
+      </section>
+
+      <!-- Transaction Compare -->
+      <section id="panel-compare" class="hidden">
+        <div class="row" style="justify-content:space-between;">
+          <h2>Transaction History Compare</h2>
+          <button id="back-home-2" class="btn">← Back</button>
+        </div>
+
+        <div id="sign-flip-banner" class="banner hidden"></div>
+
+        <div class="card">
+          <div class="card-title">Upload & Options</div>
+
+          <!-- Two-column layout inside the card:
+             Left = file dropzones; Right = all extra options stacked vertically -->
+          <div class="row" style="align-items:flex-start;">
+            <!-- Left: Files -->
+            <div
+              style="display:flex; flex-direction:column; gap:12px; min-width:520px; flex:1;"
+            >
+              <div class="field" style="min-width:260px;flex:1;">
+                <div id="dz-a" class="dz" tabindex="0" aria-live="polite">
+                  File A (CSV/XLSX/XLS)
+                </div>
+                <input
+                  id="file-a"
+                  type="file"
+                  class="hidden"
+                  accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"
+                />
+                <div class="muted" id="map-a"></div>
+              </div>
+
+              <div class="field" style="min-width:260px;flex:1;">
+                <div id="dz-b" class="dz" tabindex="0" aria-live="polite">
+                  File B (CSV/XLSX/XLS)
+                </div>
+                <input
+                  id="file-b"
+                  type="file"
+                  class="hidden"
+                  accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"
+                />
+                <div class="muted" id="map-b"></div>
+              </div>
+            </div>
+
+            <!-- Right: Options -->
+            <div
+              style="display:flex; flex-direction:column; gap:12px; min-width:320px; margin-left:auto;"
+            >
+              <div class="field">
+                <label>Date tolerance (days)</label>
+                <input
+                  id="compare-days"
+                  class="input"
+                  type="number"
+                  min="0"
+                  value="0"
+                />
+              </div>
+
+              <div class="field" style="min-width:220px;">
+                <label>Use Description in match</label>
+                <label class="row" style="gap:6px;"
+                  ><input id="use-desc" type="checkbox" />
+                  <span>Require Description match</span></label
+                >
+                <label class="row" style="gap:6px;"
+                  ><input id="fuzzy-desc" type="checkbox" />
+                  <span>Fuzzy Description (experimental)</span></label
+                >
+              </div>
+
+              <div class="field" style="min-width:220px;">
+                <label>Use Card in match</label>
+                <label class="row" style="gap:6px;"
+                  ><input id="use-card" type="checkbox" />
+                  <span>Require Card match</span></label
+                >
+              </div>
+
+              <div class="field">
+                <label>&nbsp;</label>
+                <button id="run-compare" class="btn primary">Run</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="muted" id="compare-readiness"></div>
+        </div>
+
+        <!-- Collapsible A ▸ B -->
+        <details id="sec-a-not-b" open class="collapsible">
+          <summary>
+            <span class="badge" id="badge-a-to-b">A▸B</span>
+            <span class="muted" id="total-a-not-b">Total: 0</span>
+          </summary>
+          <div class="controls row">
+            <button id="export-a-not-b" class="btn btn-outline">
+              Export A▸B
+            </button>
+            <input
+              id="filter-a-not-b"
+              class="input"
+              placeholder="Filter rows in A not in B"
+            />
+            <div class="pager">
+              <button class="btn" id="a-prev">‹ Prev</button>
+              <span id="a-pageinfo" class="muted">Page 1</span>
+              <button class="btn" id="a-next">Next ›</button>
+              <select id="a-pagesize" class="input">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+          <div id="grid-a-not-b" class="card" style="margin-top:8px;"></div>
+        </details>
+
+        <!-- Collapsible B ▸ A -->
+        <details id="sec-b-not-a" class="collapsible">
+          <summary>
+            <span class="badge" id="badge-b-to-a">B▸A</span>
+            <span class="muted" id="total-b-not-a">Total: 0</span>
+          </summary>
+          <div class="controls row">
+            <button id="export-b-not-a" class="btn btn-outline">
+              Export B▸A
+            </button>
+            <input
+              id="filter-b-not-a"
+              class="input"
+              placeholder="Filter rows in B not in A"
+            />
+            <div class="pager">
+              <button class="btn" id="b-prev">‹ Prev</button>
+              <span id="b-pageinfo" class="muted">Page 1</span>
+              <button class="btn" id="b-next">Next ›</button>
+              <select id="b-pagesize" class="input">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+          <div id="grid-b-not-a" class="card" style="margin-top:8px;"></div>
+        </details>
+      </section>
+    </main>
+
+    <footer>© <span id="year"></span></footer>
+
+    <!-- Column chooser modal -->
+    <dialog id="column-modal">
+      <header><strong id="modal-title">Choose column</strong></header>
+      <div class="content">
+        <div class="muted">
+          Which column should be used for <span id="modal-which"></span>?
+        </div>
+        <select id="modal-select" style="width:100%; margin-top:10px;"></select>
       </div>
+      <footer>
+        <button id="modal-cancel" class="btn">Cancel</button>
+        <button id="modal-ok" class="btn primary">Use this column</button>
+      </footer>
+    </dialog>
 
-      <!-- Collapsible A ▸ B -->
-      <details id="sec-a-not-b" open class="collapsible">
-        <summary>
-          <span class="badge" id="badge-a-to-b">A▸B</span>
-          <span class="muted" id="total-a-not-b">Total: 0</span>
-        </summary>
-        <div class="controls row">
-          <button id="export-a-not-b" class="btn btn-outline">Export A▸B</button>
-          <input id="filter-a-not-b" class="input" placeholder="Filter rows in A not in B">
-          <div class="pager">
-            <button class="btn" id="a-prev">‹ Prev</button>
-            <span id="a-pageinfo" class="muted">Page 1</span>
-            <button class="btn" id="a-next">Next ›</button>
-            <select id="a-pagesize" class="input">
-              <option value="10">10</option>
-              <option value="25" selected>25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-          </div>
-        </div>
-        <div id="grid-a-not-b" class="card" style="margin-top:8px;"></div>
-      </details>
-
-      <!-- Collapsible B ▸ A -->
-      <details id="sec-b-not-a" class="collapsible">
-        <summary>
-          <span class="badge" id="badge-b-to-a">B▸A</span>
-          <span class="muted" id="total-b-not-a">Total: 0</span>
-        </summary>
-        <div class="controls row">
-          <button id="export-b-not-a" class="btn btn-outline">Export B▸A</button>
-          <input id="filter-b-not-a" class="input" placeholder="Filter rows in B not in A">
-          <div class="pager">
-            <button class="btn" id="b-prev">‹ Prev</button>
-            <span id="b-pageinfo" class="muted">Page 1</span>
-            <button class="btn" id="b-next">Next ›</button>
-            <select id="b-pagesize" class="input">
-              <option value="10">10</option>
-              <option value="25" selected>25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-          </div>
-        </div>
-        <div id="grid-b-not-a" class="card" style="margin-top:8px;"></div>
-      </details>
-    </section>
-  </main>
-
-  <footer>
-    © <span id="year"></span>
-  </footer>
-
-  <!-- Column chooser modal -->
-  <dialog id="column-modal">
-    <header><strong id="modal-title">Choose column</strong></header>
-    <div class="content">
-      <div class="muted">Which column should be used for <span id="modal-which"></span>?</div>
-      <select id="modal-select" style="width:100%; margin-top:10px;"></select>
-    </div>
-    <footer>
-      <button id="modal-cancel" class="btn">Cancel</button>
-      <button id="modal-ok" class="btn primary">Use this column</button>
-    </footer>
-  </dialog>
-
-  <script src="app.js"></script>
-</body>
+    <script src="app.js"></script>
+  </body>
 </html>

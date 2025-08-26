@@ -1,5 +1,6 @@
 /* =========================================================
    app.js — Smart exports; dynamic labels; bolded modal targets; Desc off by default
+   + NEW: Optional Match-by-Card (off by default)
    ========================================================= */
 
 (function(){
@@ -148,7 +149,6 @@
         return resolve(match || null);
       }
       $('#modal-title').textContent = 'Choose column';
-      // allow bold for the exact target (Card, Date, etc.)
       $('#modal-which').innerHTML = contentLabel;
       const sel = $('#modal-select');
       sel.innerHTML = headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
@@ -547,6 +547,7 @@
     const days = Math.max(0, +($('#compare-days')?.value||0));
     const useDesc = $('#use-desc')?.checked;
     const fuzzyDesc = $('#fuzzy-desc')?.checked;
+    const useCard = $('#use-card')?.checked;
     if (!fileA || !fileB){ if(status) status.textContent='Please select File A and File B.'; return; }
     if (status) status.textContent='Parsing…';
 
@@ -559,7 +560,7 @@
     const headersA = pa.headers; const headersB = pb.headers;
     if (!rowsA.length || !rowsB.length){ if(status) status.textContent='One or both files are empty.'; return; }
 
-    // Detect columns and force prompt if multiple date candidates (with bolded exact field and name stems)
+    // Detect Date columns (prompt if multiple likely), and required Amount
     let dateA = detectByHeader(headersA, DATE_HEADER_CANDS);
     let dateB = detectByHeader(headersB, DATE_HEADER_CANDS);
     const dateCandsA = [...new Set([...(detectDateColumnsByData(rowsA, headersA)), ...headersA.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
@@ -574,18 +575,17 @@
     if (!amountA) amountA = await chooseColumnModal(headersA, makeWhichLabel(aStem,'Amount'));
     if (!amountB) amountB = await chooseColumnModal(headersB, makeWhichLabel(bStem,'Amount'));
 
+    // Optional Description
     let descA = useDesc ? (detectByHeader(headersA, DESC_HEADER_CANDS) || await chooseColumnModal(headersA, makeWhichLabel(aStem,'Description'))) : null;
     let descB = useDesc ? (detectByHeader(headersB, DESC_HEADER_CANDS) || await chooseColumnModal(headersB, makeWhichLabel(bStem,'Description'))) : null;
 
-    let cardA = detectByHeader(headersA, CARD_HEADER_CANDS) || await chooseColumnModal(headersA, makeWhichLabel(aStem,'Card'));
-    let cardB = detectByHeader(headersB, CARD_HEADER_CANDS) || await chooseColumnModal(headersB, makeWhichLabel(bStem,'Card'));
+    // Optional Card
+    let cardA = useCard ? (detectByHeader(headersA, CARD_HEADER_CANDS) || await chooseColumnModal(headersA, makeWhichLabel(aStem,'Card'))) : null;
+    let cardB = useCard ? (detectByHeader(headersB, CARD_HEADER_CANDS) || await chooseColumnModal(headersB, makeWhichLabel(bStem,'Card'))) : null;
 
-    if (!dateA || !dateB || !amountA || !amountB || !cardA || !cardB){
-      if (status) status.textContent = 'Missing required columns (Date, Amount, Card).';
-      return;
-    }
-    if (useDesc && (!descA || !descB)){
-      if (status) status.textContent = 'Description matching enabled but Description columns not set.';
+    // Required columns check
+    if (!dateA || !dateB || !amountA || !amountB || (useDesc && (!descA || !descB)) || (useCard && (!cardA || !cardB))){
+      if (status) status.textContent = 'Missing required columns. Need Date + Amount; Description/Card only if enabled.';
       return;
     }
 
@@ -597,9 +597,11 @@
     rowsA.slice(0,2000).forEach(ra=>{
       const a = coerceNumber(ra[amountA]);
       if (a===null) return;
-      const match = rowsB.find(rb => cardKey(rb[cardB])===cardKey(ra[cardA])
-        && (!useDesc || descMatches(rb[descB], ra[descA], fuzzyDesc))
-        && cents(coerceNumber(rb[amountB]))===cents(a));
+      const match = rowsB.find(rb =>
+        (!useCard || cardKey(rb[cardB])===cardKey(ra[cardA])) &&
+        (!useDesc || descMatches(rb[descB], ra[descA], fuzzyDesc)) &&
+        cents(coerceNumber(rb[amountB]))===cents(a)
+      );
       if (match){
         evaluated++;
         const b = coerceNumber(match[amountB]);
@@ -611,10 +613,11 @@
       if (banner){ banner.classList.remove('hidden'); banner.textContent=`Most matched amounts have opposite signs. Comparison uses |amount| for matching.`; }
     } else if (banner){ banner.classList.add('hidden'); banner.textContent=''; }
 
-    // Build B index key: Card-last4 + (optional Desc) + |Amount| cents
+    // Build B index key based on toggles
     const idxB = new Map();
     rowsB.forEach((rb, i)=>{
-      const keyParts = [cardKey(rb[cardB])];
+      const keyParts = [];
+      if (useCard) keyParts.push(cardKey(rb[cardB]));
       if (useDesc) keyParts.push(fuzzyDesc ? normalizeDescTokens(rb[descB]).join(' ') : normalizeDesc(rb[descB]));
       keyParts.push(String(cents(coerceNumber(rb[amountB]))));
       const key = keyParts.join('|');
@@ -628,7 +631,8 @@
     const matchedB = new Set();
 
     rowsA.forEach((ra, i)=>{
-      const keyParts = [cardKey(ra[cardA])];
+      const keyParts = [];
+      if (useCard) keyParts.push(cardKey(ra[cardA]));
       if (useDesc) keyParts.push(fuzzyDesc ? normalizeDescTokens(ra[descA]).join(' ') : normalizeDesc(ra[descA]));
       keyParts.push(String(cents(coerceNumber(ra[amountA]))));
       const key = keyParts.join('|');
