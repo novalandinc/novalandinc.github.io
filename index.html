@@ -13,12 +13,8 @@
   </head>
   <body>
     <header>
-      <div class="brand">Internal Tools</div>
-      <div class="row">
-        <button id="nav-duplicates" class="btn">Duplicates Auditor</button>
-        <button id="nav-compare" class="btn">
-          Transaction History Compare
-        </button>
+      <div class="brand" id="nav-home" style="cursor: pointer;">
+        Internal Tools
       </div>
     </header>
 
@@ -42,7 +38,7 @@
             />
             <div>
               <div class="card-title">Duplicates Auditor</div>
-              <div class="muted">Single file • Two files (legacy-like)</div>
+              <div class="muted">Single file duplicate detection</div>
               <div class="muted small">CSV or Excel (.xlsx/.xls)</div>
             </div>
           </div>
@@ -109,80 +105,39 @@
               <label>&nbsp;</label>
               <button id="run-single" class="btn primary">Run</button>
             </div>
-            <div class="field">
-              <label>&nbsp;</label>
-              <button
-                id="export-dups"
-                class="btn btn-outline"
-                disabled
-                title="After running, export: highlight rows if Excel; CSV-only if CSV"
-              >
-                Export Duplicates
-              </button>
-            </div>
           </div>
           <div class="muted" id="status-single"></div>
         </div>
 
-        <div id="out-single"></div>
-
-        <div class="card">
-          <div class="card-title">
-            Two files — find overlaps (same Txn# and same date)
-          </div>
-          <div class="row">
-            <div class="field" style="min-width:240px;flex:1;">
-              <div class="dz" id="dz-paid" tabindex="0" aria-live="polite">
-                File A
-              </div>
-              <input
-                type="file"
-                id="file-paid"
-                accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"
-                class="hidden"
-              />
-            </div>
-            <div class="field" style="min-width:240px;flex:1;">
-              <div class="dz" id="dz-unpaid" tabindex="0" aria-live="polite">
-                File B
-              </div>
-              <input
-                type="file"
-                id="file-unpaid"
-                accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,.xls"
-                class="hidden"
-              />
-            </div>
-            <div class="field">
-              <label>Date tolerance (days)</label>
-              <input
-                id="days-cross"
-                class="input"
-                type="number"
-                min="0"
-                value="0"
-              />
-            </div>
-            <div class="field">
-              <label>&nbsp;</label>
-              <button id="run-cross" class="btn">Check overlap</button>
-            </div>
-            <div class="field">
-              <label>&nbsp;</label>
-              <button
-                id="export-overlap"
-                class="btn btn-outline"
-                disabled
-                title="If A is Excel: highlight overlaps in A; else CSV with overlap rows"
-              >
-                Export Overlap A∩B
-              </button>
+        <!-- Collapsible Duplicates Results -->
+        <details id="sec-duplicates" class="collapsible" open>
+          <summary>
+            <span class="badge" id="badge-duplicates">Duplicates</span>
+            <span class="muted" id="total-duplicates">Total: 0</span>
+          </summary>
+          <div class="controls row">
+            <button id="export-duplicates" class="btn btn-outline">
+              Export Duplicates
+            </button>
+            <input
+              id="filter-duplicates"
+              class="input"
+              placeholder="Filter duplicate rows"
+            />
+            <div class="pager">
+              <button class="btn" id="dup-prev">‹ Prev</button>
+              <span id="dup-pageinfo" class="muted">Page 1</span>
+              <button class="btn" id="dup-next">Next ›</button>
+              <select id="dup-pagesize" class="input">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
             </div>
           </div>
-          <div class="muted" id="status-cross"></div>
-        </div>
-
-        <div id="out-cross"></div>
+          <div id="grid-duplicates" class="card" style="margin-top:8px;"></div>
+        </details>
       </section>
 
       <!-- Transaction Compare -->
@@ -338,7 +293,7 @@
       </section>
     </main>
 
-    <footer>© <span id="year"></span></footer>
+    <footer>© <span id="year"></span> Novaland, Inc.</footer>
 
     <!-- Column chooser modal -->
     <dialog id="column-modal">

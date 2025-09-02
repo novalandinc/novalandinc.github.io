@@ -308,12 +308,22 @@
       if (!el) return;
       if (pid === id) el.classList.remove('hidden'); else el.classList.add('hidden');
     });
+    
+    // Update brand to show home icon when not on home page
+    const brandEl = $('#nav-home');
+    if (brandEl) {
+      if (id === 'panel-home') {
+        brandEl.innerHTML = 'Internal Tools';
+      } else {
+        brandEl.innerHTML = '🏠 Internal Tools';
+      }
+    }
   }
   function initNav(){
+    const goHome = ()=>showPanel('panel-home');
     const goDup = ()=>showPanel('panel-duplicates');
     const goCmp = ()=>showPanel('panel-compare');
-    on($('#nav-duplicates'),'click',goDup);
-    on($('#nav-compare'),'click',goCmp);
+    on($('#nav-home'),'click',goHome);
     on($('#nav-duplicates-card'),'click',goDup);
     on($('#nav-duplicates-card'),'keydown',e=>{ if(e.key==='Enter'||e.key===' ') {e.preventDefault();goDup();}});
     on($('#nav-compare-card'),'click',goCmp);
@@ -371,116 +381,237 @@
     </div>`;
   }
 
-  const singleState = { file: null, rows: [], headers: [], dupIdxs: new Set() };
+  const singleState = { 
+    file: null, 
+    rows: [], 
+    headers: [], 
+    duplicateGroups: [],
+    page: 1,
+    size: 25
+  };
+
+  // Helper function to normalize strings for comparison (ignore whitespace and capitalization)
+  const normalizeString = s => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+
   async function runSingle(){
     const status = $('#status-single');
     const file = $('#file-single')?.files?.[0];
-    const days = Math.max(0, +($('#days-single')?.value||0));
+    const days = Math.max(0, +($('#days-single')?.value||7));
     if (!file){ if(status) status.textContent='Please choose a file.'; return; }
     if (status) status.textContent='Parsing…';
+    
     const parsed = await parseFile(file);
-    const rows = parsed.rows; const headers = parsed.headers;
-    let dateCol = detectByHeader(headers, DATE_HEADER_CANDS);
-    let txnCol  = detectByHeader(headers, ['transaction number','transaction id','trans #','txn #','reference','ref','id','trace number','check #','check number']);
-    const dateCands = [...new Set([...(detectDateColumnsByData(rows, headers)), ...headers.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
-    if (dateCands.length >= 2) dateCol = await chooseColumnModal(dateCands, makeWhichLabel(stem(file.name),'Date'));
-    if (!dateCol)  dateCol = await chooseColumnModal(headers, makeWhichLabel(stem(file.name),'Date'));
-    if (!txnCol)   txnCol  = await chooseColumnModal(headers, makeWhichLabel(stem(file.name),'Transaction #'));
-    if (!dateCol || !txnCol){ if(status) status.textContent='Required columns not set.'; return; }
-    const seen = new Map();
-    const dups = [];
-    const dupIdxs = new Set();
-    rows.forEach((r, i)=>{
-      const k = String(r[txnCol]??'').trim();
-      const d = r[dateCol];
-      if (!seen.has(k)) seen.set(k, []);
-      const arr = seen.get(k);
-      const hit = arr.find(x => withinDays(x.d, d, days));
-      if (hit){ dups.push(r); dupIdxs.add(i); } else { arr.push({d, idx:i}); }
-    });
-    singleState.file = file; singleState.rows = rows; singleState.headers = headers; singleState.dupIdxs = dupIdxs;
+    const rows = parsed.rows; 
+    const headers = parsed.headers;
+    
+    // Look for specific columns first
+    let entryDateCol = headers.find(h => normalizeHeader(h) === 'entrydate');
+    let amountCol = headers.find(h => normalizeHeader(h) === 'amount');
+    let payeeNameCol = headers.find(h => normalizeHeader(h) === 'payeename');
+    let buildingNameCol = headers.find(h => normalizeHeader(h) === 'buildingname');
+    let buildingIdCol = headers.find(h => normalizeHeader(h) === 'buildingid');
 
-    if (status) status.textContent = `Found ${dups.length} potential duplicates.`;
-    renderTable($('#out-single'), headers, dups, 'Duplicate rows');
-
-    const btn = $('#export-dups');
-    if (btn){
-      btn.disabled = dups.length === 0;
-      btn.onclick = async () => {
-        if (isExcelFile(singleState.file)){
-          const fn = `${stripExt(singleState.file.name)}__DUPLICATE_ROWS_HIGHLIGHTED.xlsx`;
-          await exportHighlightedXlsx(fn, headers, rows, dupIdxs, 'Data');
-        } else {
-          if (!dups.length) return;
-          const csvRows = [headers, ...rows.filter((_,i)=>dupIdxs.has(i)).map(r=>headers.map(h=>r[h]))];
-          downloadCSV(`${stripExt(singleState.file.name)}__duplicates_only.csv`, csvRows);
-        }
-      };
+    // If not found, try to detect by header patterns
+    if (!entryDateCol) {
+      entryDateCol = detectByHeader(headers, ['entrydate', 'entry date', 'date', 'transaction date', 'posting date']);
     }
+    if (!amountCol) {
+      amountCol = detectByHeader(headers, AMOUNT_HEADER_CANDS);
+    }
+    if (!payeeNameCol) {
+      payeeNameCol = detectByHeader(headers, ['payeename', 'payee name', 'payee', 'merchant', 'description']);
+    }
+    if (!buildingNameCol) {
+      buildingNameCol = detectByHeader(headers, ['buildingname', 'building name', 'building', 'location']);
+    }
+    if (!buildingIdCol) {
+      buildingIdCol = detectByHeader(headers, ['buildingid', 'building id', 'building_id', 'location_id']);
+    }
+
+    // Ask user to select missing columns
+    if (!entryDateCol) {
+      const dateCands = detectDateColumnsByData(rows, headers);
+      if (dateCands.length >= 2) {
+        entryDateCol = await chooseColumnModal(dateCands, makeWhichLabel(stem(file.name), 'Entry Date'));
+      } else {
+        entryDateCol = await chooseColumnModal(headers, makeWhichLabel(stem(file.name), 'Entry Date'));
+      }
+    }
+    if (!amountCol) {
+      amountCol = await chooseColumnModal(headers, makeWhichLabel(stem(file.name), 'Amount'));
+    }
+    if (!payeeNameCol) {
+      payeeNameCol = await chooseColumnModal(headers, makeWhichLabel(stem(file.name), 'Payee Name'));
+    }
+    if (!buildingNameCol) {
+      buildingNameCol = await chooseColumnModal(headers, makeWhichLabel(stem(file.name), 'Building Name'));
+    }
+    if (!buildingIdCol) {
+      buildingIdCol = await chooseColumnModal(headers, makeWhichLabel(stem(file.name), 'Building ID'));
+    }
+
+    if (!entryDateCol || !amountCol || !payeeNameCol || !buildingNameCol || !buildingIdCol) {
+      if(status) status.textContent='Required columns not set.';
+      return;
+    }
+
+    // Find duplicate groups
+    const groups = new Map();
+    const duplicateGroups = [];
+
+    rows.forEach((row, index) => {
+      const entryDate = toDateAny(row[entryDateCol]);
+      const amount = coerceNumber(row[amountCol]);
+      const payeeName = normalizeString(row[payeeNameCol]);
+      const buildingName = normalizeString(row[buildingNameCol]);
+      const buildingId = normalizeString(row[buildingIdCol]);
+
+      // Skip rows with missing required data
+      if (!entryDate || amount === null || !payeeName || !buildingName || !buildingId) {
+        return;
+      }
+
+      // Create a key for grouping (excluding date for now)
+      const groupKey = `${amount}|${payeeName}|${buildingName}|${buildingId}`;
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
+      }
+      
+      groups.get(groupKey).push({ row, index, entryDate });
+    });
+
+    // Process groups to find duplicates within date tolerance
+    const dateTolerance = days;
+    groups.forEach((groupRows, groupKey) => {
+      if (groupRows.length < 2) return; // Skip single rows
+      
+      // Sort by date to make comparison easier
+      groupRows.sort((a, b) => a.entryDate - b.entryDate);
+      
+      const duplicateGroup = [];
+      
+      for (let i = 0; i < groupRows.length; i++) {
+        const current = groupRows[i];
+        const duplicates = [current];
+        
+        // Find all rows within date tolerance
+        for (let j = i + 1; j < groupRows.length; j++) {
+          const other = groupRows[j];
+          if (daysDiff(current.entryDate, other.entryDate) <= dateTolerance) {
+            duplicates.push(other);
+          } else {
+            break; // Since sorted by date, no more matches possible
+          }
+        }
+        
+        if (duplicates.length > 1) {
+          duplicateGroup.push(...duplicates);
+          i += duplicates.length - 1; // Skip processed rows
+        }
+      }
+      
+      if (duplicateGroup.length > 0) {
+        duplicateGroups.push(duplicateGroup);
+      }
+    });
+
+    // Store state
+    singleState.file = file;
+    singleState.rows = rows;
+    singleState.headers = headers;
+    singleState.duplicateGroups = duplicateGroups;
+    singleState.page = 1;
+
+    const totalDuplicates = duplicateGroups.reduce((sum, group) => sum + group.length, 0);
+    if (status) status.textContent = `Found ${duplicateGroups.length} duplicate groups with ${totalDuplicates} total duplicate rows.`;
+
+    // Update UI
+    updateDuplicatesDisplay();
+    setupDuplicatesExport();
   }
 
-  const crossState = { fileA: null, rowsA: [], headersA: [], overlapIdxs: new Set(), paidName:'', unpaidName:'' };
-  async function runCross(){
-    const status = $('#status-cross');
-    const fa = $('#file-paid')?.files?.[0];
-    const fb = $('#file-unpaid')?.files?.[0];
-    const days = Math.max(0, +($('#days-cross')?.value||0));
-    if (!fa || !fb){ if(status) status.textContent='Choose both files.'; return; }
-    if (status) status.textContent='Parsing…';
-
-    updateOverlapLabel(stem(fa.name), stem(fb.name));
-
-    const [pa, pb] = await Promise.all([parseFile(fa), parseFile(fb)]);
-    const rowsA = pa.rows; const rowsB = pb.rows;
-    const headersA = pa.headers; const headersB = pb.headers;
-    let dateA = detectByHeader(headersA, DATE_HEADER_CANDS);
-    let dateB = detectByHeader(headersB, DATE_HEADER_CANDS);
-    let txnA  = detectByHeader(headersA, ['transaction number','transaction id','trans #','txn #','reference','ref','id','trace number','check #','check number']);
-    let txnB  = detectByHeader(headersB, ['transaction number','transaction id','trans #','txn #','reference','ref','id','trace number','check #','check number']);
-    const candA = [...new Set([...(detectDateColumnsByData(rowsA, headersA)), ...headersA.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
-    const candB = [...new Set([...(detectDateColumnsByData(rowsB, headersB)), ...headersB.filter(h=>DATE_HEADER_CANDS.some(c=>normalizeHeader(h).includes(normalizeHeader(c))))])];
-    if (candA.length >= 2) dateA = await chooseColumnModal(candA, makeWhichLabel(stem(fa.name),'Date'));
-    if (candB.length >= 2) dateB = await chooseColumnModal(candB, makeWhichLabel(stem(fb.name),'Date'));
-    if (!dateA) dateA = await chooseColumnModal(headersA, makeWhichLabel(stem(fa.name),'Date'));
-    if (!dateB) dateB = await chooseColumnModal(headersB, makeWhichLabel(stem(fb.name),'Date'));
-    if (!txnA)  txnA  = await chooseColumnModal(headersA, makeWhichLabel(stem(fa.name),'Transaction #'));
-    if (!txnB)  txnB  = await chooseColumnModal(headersB, makeWhichLabel(stem(fb.name),'Transaction #'));
-    if (!dateA || !dateB || !txnA || !txnB){ if(status) status.textContent='Required columns not set.'; return; }
-
-    const byTxnB = new Map();
-    rowsB.forEach(r=>{
-      const k = String(r[txnB]??'').trim();
-      if (!byTxnB.has(k)) byTxnB.set(k, []);
-      byTxnB.get(k).push(r);
-    });
-    const overlap = [];
-    const overlapIdxs = new Set();
-    rowsA.forEach((r, i)=>{
-      const k = String(r[txnA]??'').trim();
-      const cands = byTxnB.get(k)||[];
-      if (cands.find(b=>withinDays(r[dateA], b[dateB], days))){ overlap.push(r); overlapIdxs.add(i); }
-    });
-    crossState.fileA = fa; crossState.rowsA = rowsA; crossState.headersA = headersA; crossState.overlapIdxs = overlapIdxs;
-    crossState.paidName = fa.name; crossState.unpaidName = fb.name;
-
-    if (status) status.textContent = `Found ${overlap.length} overlaps.`;
-    renderTable($('#out-cross'), headersA, overlap, `Rows in ${stem(fa.name)} that overlap ${stem(fb.name)}`);
-
-    const btn = $('#export-overlap');
-    if (btn){
-      btn.disabled = overlap.length === 0;
-      btn.onclick = async () => {
-        if (isExcelFile(crossState.fileA)){
-          const fn = `${stripExt(crossState.fileA.name)}__OVERLAP_ROWS_HIGHLIGHTED.xlsx`;
-          await exportHighlightedXlsx(fn, headersA, rowsA, overlapIdxs, 'Data');
-        } else {
-          if (!overlap.length) return;
-          const csvRows = [headersA, ...rowsA.filter((_,i)=>overlapIdxs.has(i)).map(r=>headersA.map(h=>r[h]))];
-          downloadCSV(`${stripExt(crossState.fileA.name)}__overlap_only.csv`, csvRows);
-        }
-      };
+  function updateDuplicatesDisplay() {
+    const container = $('#grid-duplicates');
+    const totalEl = $('#total-duplicates');
+    const pageInfoEl = $('#dup-pageinfo');
+    
+    if (!container || !singleState.duplicateGroups.length) {
+      if (totalEl) totalEl.textContent = 'Total: 0';
+      if (pageInfoEl) pageInfoEl.textContent = 'Page 1';
+      if (container) container.innerHTML = '<div class="muted">No duplicates found.</div>';
+      return;
     }
+
+    const total = singleState.duplicateGroups.reduce((sum, group) => sum + group.length, 0);
+    const maxPage = Math.max(1, Math.ceil(singleState.duplicateGroups.length / singleState.size));
+    const clampedPage = Math.min(Math.max(1, singleState.page), maxPage);
+    const start = (clampedPage - 1) * singleState.size;
+    const end = Math.min(start + singleState.size, singleState.duplicateGroups.length);
+
+    const groupsSlice = singleState.duplicateGroups.slice(start, end);
+    
+    if (totalEl) totalEl.textContent = `Total: ${total}`;
+    if (pageInfoEl) pageInfoEl.textContent = `Page ${clampedPage} / ${maxPage}`;
+
+    // Render each group in its own card
+    const groupsHTML = groupsSlice.map((group, groupIndex) => {
+      const actualGroupIndex = start + groupIndex;
+      const head = html`<thead><tr><th class="num">#</th>${singleState.headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>`;
+      const body = html`<tbody>${group.map(({row, index})=>`
+        <tr>
+          <td class="num">${index+2}</td>
+          ${singleState.headers.map(h=>`<td>${esc(row[h])}</td>`).join('')}
+        </tr>
+      `).join('')}</tbody>`;
+      
+      return html`<div class="card" style="margin-bottom: 16px;">
+        <div class="card-title">Duplicate Group ${actualGroupIndex + 1} (${group.length} rows)</div>
+        <div class="scroll-x">
+          <table class="table compact">
+            ${head}${body}
+          </table>
+        </div>
+      </div>`;
+    }).join('');
+
+    const startRow = start + 1;
+    const endRow = Math.min(end, singleState.duplicateGroups.length);
+    
+    container.innerHTML = html`${groupsHTML}
+      <div class="muted" style="padding:8px 4px;">Showing groups ${startRow}–${endRow} of ${singleState.duplicateGroups.length}</div>`;
   }
+
+  function setupDuplicatesExport() {
+    const btn = $('#export-duplicates');
+    if (!btn) return;
+
+    btn.disabled = singleState.duplicateGroups.length === 0;
+    btn.onclick = async () => {
+      if (!singleState.duplicateGroups.length) return;
+
+      // Flatten all duplicate rows
+      const allDuplicateRows = [];
+      const duplicateIndexes = new Set();
+      
+      singleState.duplicateGroups.forEach(group => {
+        group.forEach(item => {
+          allDuplicateRows.push(item.row);
+          duplicateIndexes.add(item.index);
+        });
+      });
+
+      if (isExcelFile(singleState.file)) {
+        const fn = `${stripExt(singleState.file.name)}__DUPLICATE_ROWS_HIGHLIGHTED.xlsx`;
+        await exportHighlightedXlsx(fn, singleState.headers, singleState.rows, duplicateIndexes, 'Data');
+      } else {
+        const csvRows = [singleState.headers, ...allDuplicateRows.map(r => singleState.headers.map(h => r[h]))];
+        downloadCSV(`${stripExt(singleState.file.name)}__duplicates_only.csv`, csvRows);
+      }
+    };
+  }
+
+
 
   /* =========================================================
      Compare (+ dynamic names + exports)
@@ -719,14 +850,11 @@
   /* ---------- boot ---------- */
   function boot(){
     initNav();
-    ['single','paid','unpaid','a','b'].forEach(tag => wireDropzone(`dz-${tag}`, `file-${tag}`));
+    ['single','a','b'].forEach(tag => wireDropzone(`dz-${tag}`, `file-${tag}`));
     on($('#run-single'),'click',()=>{ runSingle().catch(e=>{$('#status-single').textContent='Error: '+e.message;}); });
-    on($('#run-cross'),'click',()=>{ runCross().catch(e=>{$('#status-cross').textContent='Error: '+e.message;}); });
     on($('#run-compare'),'click',()=>{ runCompare().catch(e=>{$('#compare-readiness').textContent='Error: '+e.message;}); });
     on($('#file-a'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateABLabels(stem(f.name), nameState.bStem); $('#compare-readiness').textContent = `A: ${f.name}`; } });
     on($('#file-b'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateABLabels(nameState.aStem, stem(f.name)); const t=$('#compare-readiness'); t.textContent = (t.textContent? t.textContent+' • ' : '') + `B: ${f.name}`; } });
-    on($('#file-paid'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateOverlapLabel(stem(f.name), nameState.unpaidStem); } });
-    on($('#file-unpaid'),'change',e=>{ const f=e.target.files?.[0]; if(f){ updateOverlapLabel(nameState.paidStem, stem(f.name)); } });
     const yearEl=$('#year'); if(yearEl) yearEl.textContent=new Date().getFullYear();
     on($('#a-prev'),'click',()=>{ compareState.a.page--; syncPagination('a'); });
     on($('#a-next'),'click',()=>{ compareState.a.page++; syncPagination('a'); });
@@ -734,6 +862,21 @@
     on($('#b-next'),'click',()=>{ compareState.b.page++; syncPagination('b'); });
     on($('#a-pagesize'),'change',e=>{ compareState.a.size=+e.target.value; compareState.a.page=1; syncPagination('a'); });
     on($('#b-pagesize'),'change',e=>{ compareState.b.size=+e.target.value; compareState.b.page=1; syncPagination('b'); });
+    
+    // Duplicates pagination
+    on($('#dup-prev'),'click',()=>{ singleState.page--; updateDuplicatesDisplay(); });
+    on($('#dup-next'),'click',()=>{ singleState.page++; updateDuplicatesDisplay(); });
+    on($('#dup-pagesize'),'change',e=>{ singleState.size=+e.target.value; singleState.page=1; updateDuplicatesDisplay(); });
+    
+    // Duplicates filter
+    on($('#filter-duplicates'),'input',()=>{
+      const q = $('#filter-duplicates').value.toLowerCase();
+      const grid = $('#grid-duplicates');
+      $$('.card', grid).forEach(card => {
+        const t = card.textContent.toLowerCase();
+        card.style.display = t.includes(q) ? '' : 'none';
+      });
+    });
   }
   if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 })();
